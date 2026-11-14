@@ -1,0 +1,6 @@
+{
+  "name": "Lattice",
+  "description": "An accessible, distributed data structure workbench for exploring consistent hashing, CRDTs, Merkle tree anti-entropy, and quorum replication.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
