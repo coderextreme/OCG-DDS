@@ -14,6 +14,7 @@ https://nodejs.org/
 
 ```bash
 git clone https://github.com/coderextreme/OCG-DDS
+cd OCG-DDS
 ```
 # Development
 ```bash
