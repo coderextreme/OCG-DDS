@@ -38,6 +38,7 @@ const OUTPUT_OPTIONS: Array<{
   { id: 'braille', label: 'Braille' },
   { id: 'protactile', label: 'Protactile' },
   { id: 'asl', label: 'ASL' },
+  { id: 'signwriting', label: 'SignWriting' },
 ];
 
 export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
@@ -63,7 +64,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
           <div
             role="group"
             aria-labelledby="theme-group-label"
-            className="inline-flex items-center rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-0.5"
+            className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-0.5"
           >
             {THEME_OPTIONS.map(({ id, label, Icon }) => {
               const selected = theme === id;
@@ -104,7 +105,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
             <div
               role="group"
               aria-labelledby="output-channel-label"
-              className="inline-flex items-center rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-0.5"
+              className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-0.5"
             >
               {OUTPUT_OPTIONS.map(({ id, label }) => {
                 const selected = outputChannel === id;

@@ -7,11 +7,18 @@ import {
   isCapabilityActive,
 } from './ocapGraph';
 
+import {
+  formatSignWritingOutput,
+  type SignWritingDirection,
+  type SignWritingSequence,
+} from './signWriting';
+
 export type AccessibleOutputChannel =
   | 'standard'
   | 'braille'
   | 'protactile'
-  | 'asl';
+  | 'asl'
+  | 'signwriting';
 
 export interface AslSignStep {
   gloss: string;
@@ -36,6 +43,7 @@ export interface AccessibleEventBundle {
   protactile: ProtactileCue;
   aslGloss: string;
   aslSteps: AslSignStep[];
+  signWriting: SignWritingSequence;
 }
 
 // Grade-1 North American / Unified English Braille ASCII-to-Unicode mapping
@@ -375,13 +383,22 @@ export function formatAslOutput(
 export function buildAccessibleEventBundle(
   moduleTag: string,
   severity: 'info' | 'warning' | 'success',
-  summary: string
+  summary: string,
+  signLanguage: string = 'asl',
+  signWritingDirection?: SignWritingDirection
 ): AccessibleEventBundle {
   const brailleCompact = formatBrailleAnnouncement(moduleTag, severity, summary);
   const brailleLines = chunkForBrailleCells(brailleCompact, 40);
   const brailleDots = brailleLines.map((line) => toUnicodeBraille(line));
   const protactile = formatProtactileCue(moduleTag, severity, summary);
   const asl = formatAslOutput(moduleTag, severity, summary);
+  const signWriting = formatSignWritingOutput(
+    moduleTag,
+    severity,
+    summary,
+    signLanguage,
+    signWritingDirection
+  );
 
   return {
     standard: summary,
@@ -390,6 +407,7 @@ export function buildAccessibleEventBundle(
     protactile,
     aslGloss: asl.gloss,
     aslSteps: asl.steps,
+    signWriting,
   };
 }
 

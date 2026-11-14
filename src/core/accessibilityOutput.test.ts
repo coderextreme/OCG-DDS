@@ -36,17 +36,20 @@ test('ASL Output formatter produces Topic-Comment Gloss and structured Sign Step
   assert.ok(asl.steps[0].nonManualMarker.length > 0);
 });
 
-test('Accessible event bundle combines Standard, 40-cell Braille, Protactile, and ASL outputs', () => {
+test('Accessible event bundle combines Standard, 40-cell Braille, Protactile, ASL, and SignWriting outputs', () => {
   const bundle = buildAccessibleEventBundle(
     'graph',
     'success',
-    'Created arc A6 (N1 -> N6).'
+    'Created arc A6 (N1 -> N6).',
+    'dgs'
   );
   assert.equal(bundle.standard, 'Created arc A6 (N1 -> N6).');
   assert.ok(bundle.brailleLines.every((l) => l.length <= 40));
   assert.equal(bundle.brailleDots.length, bundle.brailleLines.length);
   assert.match(bundle.protactile.topographicTrace, /source anchor/i);
   assert.match(bundle.aslGloss, /ARC-CONNECT/);
+  assert.equal(bundle.signWriting.language.code, 'DGS');
+  assert.match(bundle.signWriting.fsw, /M535x540/);
 });
 
 test('Unified Graph helpers compute OCap per-node guardrails, consistent shard assignment, and Merkle records', () => {

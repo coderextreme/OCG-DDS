@@ -13,7 +13,12 @@ import {
   buildAccessibleEventBundle,
   type AccessibleOutputChannel,
 } from '../core/accessibilityOutput';
+import {
+  SIGN_LANGUAGE_PRESETS,
+  type SignWritingDirection,
+} from '../core/signWriting';
 import type { AuditEvent, SystemModuleId } from '../types/system';
+import { SignWritingLane } from './SignWritingLane';
 
 interface LiveAnnouncerPanelProps {
   activeModule: SystemModuleId;
@@ -21,6 +26,8 @@ interface LiveAnnouncerPanelProps {
   latestAnnouncement: string;
   outputChannel: AccessibleOutputChannel;
   onChangeOutputChannel: (channel: AccessibleOutputChannel) => void;
+  signLanguage: string;
+  onChangeSignLanguage: (lang: string) => void;
   events: AuditEvent[];
   onClearEvents: () => void;
 }
@@ -32,11 +39,16 @@ const MODULE_LABELS: Record<SystemModuleId, string> = {
   capabilities: 'Capabilities',
 };
 
-const CHANNEL_LABELS: Array<{ id: AccessibleOutputChannel; label: string }> = [
-  { id: 'standard', label: 'Std' },
-  { id: 'braille', label: 'Braille' },
-  { id: 'protactile', label: 'Protactile' },
-  { id: 'asl', label: 'ASL' },
+const CHANNEL_LABELS: Array<{
+  id: AccessibleOutputChannel;
+  label: string;
+  ariaLabel: string;
+}> = [
+  { id: 'standard', label: 'Std', ariaLabel: 'Inspect Standard output' },
+  { id: 'braille', label: 'Braille', ariaLabel: 'Inspect Braille output' },
+  { id: 'protactile', label: 'PT', ariaLabel: 'Inspect Protactile output' },
+  { id: 'asl', label: 'ASL', ariaLabel: 'Inspect ASL output' },
+  { id: 'signwriting', label: 'SignW', ariaLabel: 'Inspect SignWriting output' },
 ];
 
 export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
@@ -45,16 +57,34 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
   latestAnnouncement,
   outputChannel,
   onChangeOutputChannel,
+  signLanguage,
+  onChangeSignLanguage,
   events,
   onClearEvents,
 }) => {
   const [showUnicodeDots, setShowUnicodeDots] = useState(false);
   const [aslStepIndex, setAslStepIndex] = useState(0);
   const [hapticStatus, setHapticStatus] = useState<string | null>(null);
+  const [swDirection, setSwDirection] = useState<SignWritingDirection>('vertical');
+
+  const isPresetLanguage = SIGN_LANGUAGE_PRESETS.some(
+    (p) => p.id === signLanguage.toLowerCase()
+  );
+  const [useCustomLanguage, setUseCustomLanguage] = useState<boolean>(!isPresetLanguage);
+  const [customLanguageDraft, setCustomLanguageDraft] = useState<string>(
+    isPresetLanguage ? '' : signLanguage
+  );
 
   const bundle = useMemo(
-    () => buildAccessibleEventBundle(activeModule, latestSeverity, latestAnnouncement),
-    [activeModule, latestSeverity, latestAnnouncement]
+    () =>
+      buildAccessibleEventBundle(
+        activeModule,
+        latestSeverity,
+        latestAnnouncement,
+        signLanguage,
+        swDirection
+      ),
+    [activeModule, latestSeverity, latestAnnouncement, signLanguage, swDirection]
   );
 
   // Reset ASL step cursor and haptic banner when new event arrives
@@ -74,6 +104,8 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
         return `${bundle.protactile.spatialZone}. ${bundle.protactile.topographicTrace}. Backchannel: ${bundle.protactile.backchannel}.`;
       case 'asl':
         return `ASL Gloss: ${bundle.aslGloss}`;
+      case 'signwriting':
+        return `SignWriting (${bundle.signWriting.language.code}): ${bundle.signWriting.localizedGlossLine} · ${bundle.signWriting.boxes.length} SignBoxes · SWU: ${bundle.signWriting.swu}`;
       default:
         return bundle.standard;
     }
@@ -104,7 +136,7 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
             Accessible Event Output
           </h2>
           <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-            Screen reader, Braille, Protactile &amp; ASL feed
+            Screen reader, Braille, Protactile, ASL &amp; SignWriting
           </p>
         </div>
         <button
@@ -123,9 +155,9 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
       <div
         role="group"
         aria-label="Inspect accessible output format"
-        className="mt-3 grid grid-cols-4 gap-1 rounded-lg bg-[var(--bg-subtle)] p-1"
+        className="mt-3 grid grid-cols-5 gap-1 rounded-lg bg-[var(--bg-subtle)] p-1"
       >
-        {CHANNEL_LABELS.map(({ id, label }) => {
+        {CHANNEL_LABELS.map(({ id, label, ariaLabel }) => {
           const active = outputChannel === id;
           return (
             <button
@@ -133,7 +165,8 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
               type="button"
               onClick={() => onChangeOutputChannel(id)}
               aria-pressed={active}
-              className={`min-h-[32px] rounded-md px-2 py-1 text-xs font-medium cursor-pointer ${
+              aria-label={ariaLabel}
+              className={`min-h-[32px] rounded-md px-1 py-1 text-[11px] font-medium whitespace-nowrap cursor-pointer ${
                 active
                   ? 'bg-[var(--accent-primary)] text-[var(--accent-text-on)] font-semibold'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -156,7 +189,7 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
         <p className="text-xs font-semibold text-[var(--text-muted)]">
           Latest Event ({outputChannel.toUpperCase()})
         </p>
-        <p className="mt-1 text-sm font-medium leading-snug text-[var(--text-primary)]">
+        <p className="mt-1 break-words [overflow-wrap:anywhere] text-sm font-medium leading-snug text-[var(--text-primary)]">
           {liveAnnouncementText}
         </p>
       </div>
@@ -343,6 +376,83 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Sutton SignWriting Output in Any International Sign Language */}
+      {outputChannel === 'signwriting' && (
+        <div
+          data-testid="signwriting-panel"
+          className="mt-3 space-y-2.5 border-t border-[var(--border-hairline)] pt-3"
+        >
+          <div className="space-y-1.5">
+            <label
+              htmlFor="sw-language-select"
+              className="block text-xs font-semibold text-[var(--text-primary)]"
+            >
+              SignWriting Target Sign Language
+            </label>
+            <select
+              id="sw-language-select"
+              value={useCustomLanguage ? '__custom__' : bundle.signWriting.language.id}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === '__custom__') {
+                  setUseCustomLanguage(true);
+                  if (customLanguageDraft.trim()) {
+                    onChangeSignLanguage(customLanguageDraft.trim());
+                  }
+                } else {
+                  setUseCustomLanguage(false);
+                  onChangeSignLanguage(val);
+                }
+              }}
+              className="min-h-[36px] w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-primary)]"
+            >
+              {SIGN_LANGUAGE_PRESETS.map((lang) => (
+                <option key={lang.id} value={lang.id}>
+                  {lang.code} · {lang.nativeName}
+                </option>
+              ))}
+              <option value="__custom__">
+                Custom Sign Language (Any ISO 639-3 / Name)...
+              </option>
+            </select>
+
+            {useCustomLanguage && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const next = customLanguageDraft.trim();
+                  if (next) onChangeSignLanguage(next);
+                }}
+                className="flex gap-1.5"
+              >
+                <input
+                  type="text"
+                  aria-label="Enter any international sign language name or ISO code"
+                  placeholder="e.g. KSL, FSL, CSL, NZSL..."
+                  value={customLanguageDraft}
+                  onChange={(e) => setCustomLanguageDraft(e.target.value)}
+                  className="min-h-[34px] flex-1 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-2.5 py-1 text-xs text-[var(--text-primary)]"
+                />
+                <button
+                  type="submit"
+                  className="min-h-[34px] rounded-lg bg-[var(--accent-primary)] px-3 py-1 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] cursor-pointer"
+                >
+                  Apply
+                </button>
+              </form>
+            )}
+          </div>
+
+          <SignWritingLane
+            sequence={bundle.signWriting}
+            direction={swDirection}
+            onToggleDirection={() =>
+              setSwDirection((d) => (d === 'vertical' ? 'horizontal' : 'vertical'))
+            }
+          />
         </div>
       )}
 

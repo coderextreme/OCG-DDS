@@ -44,6 +44,7 @@ const CHANNEL_LABELS: Record<AccessibleOutputChannel, string> = {
   braille: 'Braille',
   protactile: 'Protactile',
   asl: 'ASL',
+  signwriting: 'SignWriting',
 };
 
 export default function App() {
@@ -51,6 +52,7 @@ export default function App() {
   const [theme, setTheme] = useState<ThemeMode>('light');
   const [reducedMotion, setReducedMotion] = useState<boolean>(false);
   const [outputChannel, setOutputChannel] = useState<AccessibleOutputChannel>('standard');
+  const [signLanguage, setSignLanguage] = useState<string>('asl');
   const [keyboardGuideOpen, setKeyboardGuideOpen] = useState<boolean>(false);
   const [editConsoleFocusSignal, setEditConsoleFocusSignal] = useState<number>(0);
   const lastFocusedRef = useRef<HTMLElement | null>(null);
@@ -299,11 +301,6 @@ export default function App() {
 
   const handleChangeOutputChannel = (channel: AccessibleOutputChannel) => {
     setOutputChannel(channel);
-    announce(
-      activeModule,
-      'info',
-      `Accessible output channel set to ${CHANNEL_LABELS[channel]}.`
-    );
   };
 
   return (
@@ -437,13 +434,17 @@ export default function App() {
             )}
           </div>
 
-          <div className="xl:col-span-3 xl:sticky xl:top-6">
+          <div className="xl:col-span-3 xl:sticky xl:top-6 min-w-0">
             <LiveAnnouncerPanel
               activeModule={activeModule}
               latestSeverity={latestSeverity}
               latestAnnouncement={latestAnnouncement}
               outputChannel={outputChannel}
               onChangeOutputChannel={handleChangeOutputChannel}
+              signLanguage={signLanguage}
+              onChangeSignLanguage={(lang) => {
+                setSignLanguage(lang);
+              }}
               events={events}
               onClearEvents={() => {
                 setEvents([]);
@@ -458,7 +459,7 @@ export default function App() {
       <footer className="border-t border-[var(--border-hairline)] bg-[var(--bg-surface)] py-4">
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-2 px-4 text-xs text-[var(--text-muted)] sm:px-6">
           <span>Lattice · Accessible Distributed Graph &amp; Object-Capability System</span>
-          <span>Braille · Protactile · ASL ready · Zero-audio dependency</span>
+          <span>Braille · Protactile · ASL · International SignWriting · Zero-audio dependency</span>
         </div>
       </footer>
 

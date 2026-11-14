@@ -62,7 +62,9 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
   const [modality, setModality] = useState<InputModality>(() =>
     outputChannel === 'braille'
       ? 'braille'
-      : outputChannel === 'asl' || outputChannel === 'protactile'
+      : outputChannel === 'asl' ||
+          outputChannel === 'protactile' ||
+          outputChannel === 'signwriting'
         ? 'asl-pt'
         : 'command'
   );

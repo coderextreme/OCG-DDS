@@ -58,7 +58,7 @@ const SHORTCUT_ROWS = [
     keys: 'Output Channel',
     scope: 'Toolbar / Announcer',
     action:
-      'Switch live announcements between Standard, 40-cell Braille (+ Unicode dots), Protactile Language (+ haptic pulse patterns), and American Sign Language (ASL Gloss + step-by-step Sign Cards).',
+      'Switch live announcements between Standard, 40-cell Braille (+ Unicode dots), Protactile Language (+ haptic pulse patterns), American Sign Language (ASL Gloss + Sign Cards), and Sutton SignWriting (2D SignBoxes, FSW & Unicode SWU) in any international or custom sign language.',
   },
   {
     keys: '?',
