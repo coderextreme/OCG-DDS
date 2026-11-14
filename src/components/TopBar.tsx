@@ -9,11 +9,10 @@ interface TopBarProps {
 }
 
 const NAV_ITEMS: Array<{ id: SystemModuleId; label: string }> = [
-  { id: 'graph', label: 'Graph & OCap' },
-  { id: 'ring', label: 'Hash Ring' },
-  { id: 'crdt', label: 'CRDT Replicas' },
-  { id: 'merkle', label: 'Merkle Sync' },
-  { id: 'quorum', label: 'Quorum Lab' },
+  { id: 'graph', label: 'Graph Workspace' },
+  { id: 'sync', label: 'Sync & Quorum' },
+  { id: 'sharding', label: 'Hash Sharding' },
+  { id: 'capabilities', label: 'Capabilities' },
 ];
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -37,7 +36,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         {/* Zone 2: 4 concise single-line nav links */}
         <nav
-          aria-label="Distributed data structure modules"
+          aria-label="Distributed graph and capability modules"
           className="order-3 flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-[var(--border-hairline)] pt-2 md:order-2 md:w-auto md:flex-nowrap md:justify-center md:gap-7 md:border-t-0 md:pt-0"
         >
           {NAV_ITEMS.map((item) => {

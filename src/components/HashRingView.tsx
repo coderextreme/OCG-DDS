@@ -9,8 +9,10 @@ import {
   type RingKeyEntry,
   type RingNode,
 } from '../core/hashRing';
+import type { GraphNode } from '../core/ocapGraph';
 
 interface HashRingViewProps {
+  graphNodes?: GraphNode[];
   nodes: RingNode[];
   entries: RingKeyEntry[];
   replicationFactor: number;
@@ -31,6 +33,7 @@ function polarToCartesian(cx: number, cy: number, radius: number, angleDeg: numb
 }
 
 export const HashRingView: React.FC<HashRingViewProps> = ({
+  graphNodes = [],
   nodes,
   entries,
   replicationFactor,
@@ -211,10 +214,10 @@ export const HashRingView: React.FC<HashRingViewProps> = ({
       <div className="flex flex-col gap-4 border-b border-[var(--border-hairline)] pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 max-w-md">
           <h1 id="ring-heading" className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-            Consistent Hash Ring
+            Consistent Hash Sharding
           </h1>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Deterministic 32-bit FNV-1a key placement across virtual nodes with clockwise replica preference lists.
+            32-bit FNV-1a placement for both distributed graph nodes and stored keys across virtual nodes.
           </p>
         </div>
 
@@ -715,6 +718,61 @@ export const HashRingView: React.FC<HashRingViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Live Distributed Graph Node Hash Routing */}
+      {graphNodes.length > 0 && (
+        <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5">
+          <h2 className="text-base font-semibold text-[var(--text-primary)]">
+            Live Distributed Graph Node Ring Placement ({graphNodes.length} graph nodes)
+          </h2>
+          <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+            Shows each live graph node&apos;s logical shard alongside its 32-bit ring owner and clockwise replicas.
+          </p>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full border-collapse text-left text-xs">
+              <thead>
+                <tr className="border-b border-[var(--border-hairline)] text-[var(--text-muted)]">
+                  <th scope="col" className="py-2 pr-3">Graph Node</th>
+                  <th scope="col" className="py-2 pr-3">Assigned Shard</th>
+                  <th scope="col" className="py-2 pr-3">32-Bit Hash</th>
+                  <th scope="col" className="py-2 pr-3">Primary Ring Host</th>
+                  <th scope="col" className="py-2">Clockwise Replicas</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border-hairline)]">
+                {graphNodes.map((gn) => {
+                  const placement = resolveKeyPlacement(
+                    createKeyEntry(`graph:${gn.id}`, gn.label),
+                    sortedVnodes,
+                    replicationFactor
+                  );
+                  return (
+                    <tr key={gn.id}>
+                      <td className="py-2 pr-3 font-semibold text-[var(--text-primary)]">
+                        <span className="font-mono">{gn.id}</span> · {gn.label}
+                      </td>
+                      <td className="py-2 pr-3 font-mono text-[var(--text-secondary)]">
+                        {gn.shard}
+                      </td>
+                      <td className="py-2 pr-3 font-mono tabular-nums text-[var(--text-muted)]">
+                        {hashToHex(placement.entry.hash)}
+                      </td>
+                      <td className="py-2 pr-3 font-mono font-semibold text-[var(--text-primary)]">
+                        {placement.primaryNodeId ?? 'Offline'}
+                      </td>
+                      <td className="py-2 font-mono text-[var(--text-secondary)]">
+                        {placement.replicaNodeIds.length > 0
+                          ? placement.replicaNodeIds.join(', ')
+                          : 'None'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </section>
   );
 };

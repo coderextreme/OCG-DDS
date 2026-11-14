@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { graphToMerkleRecords } from './core/accessibilityOutput';
 import { createSeedCrdtReplicas, type CrdtReplica } from './core/crdt';
 import {
   createSeedRingState,
   type RingKeyEntry,
   type RingNode,
 } from './core/hashRing';
-import { createSeedMerkleRecords } from './core/merkle';
 import {
   createSeedOcapGraphState,
   type CapabilityToken,
@@ -17,31 +17,42 @@ import {
   type QuorumConfig,
   type QuorumNode,
 } from './core/quorum';
-import { CrdtView } from './components/CrdtView';
+import { CapabilitiesView } from './components/CapabilitiesView';
 import { GraphOcapView } from './components/GraphOcapView';
 import { HashRingView } from './components/HashRingView';
 import { KeyboardGuideDialog } from './components/KeyboardGuideDialog';
 import { LiveAnnouncerPanel } from './components/LiveAnnouncerPanel';
-import { MerkleView } from './components/MerkleView';
-import { QuorumView } from './components/QuorumView';
+import { SyncQuorumView } from './components/SyncQuorumView';
 import { TopBar } from './components/TopBar';
 import { WorkspaceToolbar } from './components/WorkspaceToolbar';
-import type { AuditEvent, SystemModuleId, ThemeMode } from './types/system';
+import type {
+  AccessibleOutputChannel,
+  AuditEvent,
+  SystemModuleId,
+  ThemeMode,
+} from './types/system';
 
 function formatTimestamp(): string {
   const now = new Date();
   return now.toTimeString().slice(0, 8);
 }
 
+const CHANNEL_LABELS: Record<AccessibleOutputChannel, string> = {
+  standard: 'Standard',
+  braille: 'Braille',
+  protactile: 'Protactile',
+  asl: 'ASL',
+};
+
 export default function App() {
   const [activeModule, setActiveModule] = useState<SystemModuleId>('graph');
   const [theme, setTheme] = useState<ThemeMode>('light');
   const [reducedMotion, setReducedMotion] = useState<boolean>(false);
-  const [brailleMode, setBrailleMode] = useState<boolean>(false);
+  const [outputChannel, setOutputChannel] = useState<AccessibleOutputChannel>('standard');
   const [keyboardGuideOpen, setKeyboardGuideOpen] = useState<boolean>(false);
   const lastFocusedRef = useRef<HTMLElement | null>(null);
 
-  // Module 0: Distributed Graph & Object-Capability Security state
+  // Unified Distributed Graph & Object-Capability Security state
   const [graphNodes, setGraphNodes] = useState<GraphNode[]>(
     () => createSeedOcapGraphState().nodes
   );
@@ -55,7 +66,7 @@ export default function App() {
     () => createSeedOcapGraphState().activeCapabilityId
   );
 
-  // Module 1: Consistent Hash Ring state
+  // Consistent Hash Sharding state
   const [ringNodes, setRingNodes] = useState<RingNode[]>(
     () => createSeedRingState().nodes
   );
@@ -66,20 +77,18 @@ export default function App() {
     () => createSeedRingState().replicationFactor
   );
 
-  // Module 2: CRDT Replicas state
+  // CRDT Replicas state
   const [crdtReplicas, setCrdtReplicas] = useState<CrdtReplica[]>(() =>
     createSeedCrdtReplicas()
   );
 
-  // Module 3: Merkle Anti-Entropy state
-  const [merkleA, setMerkleA] = useState<Record<string, string>>(
-    () => createSeedMerkleRecords().replicaA
-  );
-  const [merkleB, setMerkleB] = useState<Record<string, string>>(
-    () => createSeedMerkleRecords().replicaB
-  );
+  // Merkle Standby Replica B (seeded from initial distributed graph records)
+  const [merkleReplicaB, setMerkleReplicaB] = useState<Record<string, string>>(() => {
+    const seed = createSeedOcapGraphState();
+    return graphToMerkleRecords(seed.nodes, seed.arcs);
+  });
 
-  // Module 4: Quorum Lab state
+  // Quorum state
   const [quorumConfig, setQuorumConfig] = useState<QuorumConfig>(
     () => createSeedQuorumState().config
   );
@@ -90,10 +99,19 @@ export default function App() {
     () => createSeedQuorumState().latestWrittenVersion
   );
 
+  // Derive healthy shards from Hash Ring physical node status
+  const healthyShards = useMemo<Array<'Shard-A' | 'Shard-B' | 'Shard-C'>>(() => {
+    const list: Array<'Shard-A' | 'Shard-B' | 'Shard-C'> = [];
+    if (ringNodes[0]?.status !== 'offline') list.push('Shard-A');
+    if (ringNodes[1]?.status !== 'offline') list.push('Shard-B');
+    if (ringNodes[2]?.status !== 'offline') list.push('Shard-C');
+    return list.length > 0 ? list : ['Shard-A'];
+  }, [ringNodes]);
+
   // Live Announcer & Audit Log
   const [latestSeverity, setLatestSeverity] = useState<'info' | 'warning' | 'success'>('info');
   const [latestAnnouncement, setLatestAnnouncement] = useState<string>(
-    'Initialized 5 graph nodes, 5 arcs, 3 OCap tokens, 4 hash ring nodes, 3 CRDT replicas, Merkle trees, and a 5-node quorum.'
+    'Initialized distributed graph (5 nodes across 3 shards, 5 arcs) under Root Authority capability.'
   );
   const [events, setEvents] = useState<AuditEvent[]>(() => [
     {
@@ -101,7 +119,8 @@ export default function App() {
       timestamp: formatTimestamp(),
       module: 'graph',
       severity: 'info',
-      summary: 'Initialized distributed graph (5 nodes, 5 arcs) under Root Authority capability.',
+      summary:
+        'Initialized distributed graph (5 nodes across 3 shards, 5 arcs) under Root Authority capability.',
     },
   ]);
 
@@ -141,7 +160,7 @@ export default function App() {
     }
   }, [theme, reducedMotion]);
 
-  // Global keyboard shortcuts (Alt+1..5 module switching, ? for Keyboard Guide)
+  // Global keyboard shortcuts (Alt+1..4 module switching, ? for Keyboard Guide)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -163,23 +182,19 @@ export default function App() {
         if (e.key === '1') {
           e.preventDefault();
           setActiveModule('graph');
-          announce('graph', 'info', 'Switched to Graph & OCap module.');
+          announce('graph', 'info', 'Switched to Graph Workspace.');
         } else if (e.key === '2') {
           e.preventDefault();
-          setActiveModule('ring');
-          announce('ring', 'info', 'Switched to Consistent Hash Ring module.');
+          setActiveModule('sync');
+          announce('sync', 'info', 'Switched to Sync & Quorum module.');
         } else if (e.key === '3') {
           e.preventDefault();
-          setActiveModule('crdt');
-          announce('crdt', 'info', 'Switched to CRDT Replicas module.');
+          setActiveModule('sharding');
+          announce('sharding', 'info', 'Switched to Hash Sharding module.');
         } else if (e.key === '4') {
           e.preventDefault();
-          setActiveModule('merkle');
-          announce('merkle', 'info', 'Switched to Merkle Sync module.');
-        } else if (e.key === '5') {
-          e.preventDefault();
-          setActiveModule('quorum');
-          announce('quorum', 'info', 'Switched to Quorum Lab module.');
+          setActiveModule('capabilities');
+          announce('capabilities', 'info', 'Switched to Capabilities Registry.');
         }
       }
     };
@@ -206,6 +221,7 @@ export default function App() {
     setGraphArcs(seedGraph.arcs);
     setCapabilities(seedGraph.capabilities);
     setActiveCapabilityId(seedGraph.activeCapabilityId);
+    setMerkleReplicaB(graphToMerkleRecords(seedGraph.nodes, seedGraph.arcs));
 
     const seedRing = createSeedRingState();
     setRingNodes(seedRing.nodes);
@@ -214,21 +230,30 @@ export default function App() {
 
     setCrdtReplicas(createSeedCrdtReplicas());
 
-    const seedMerkle = createSeedMerkleRecords();
-    setMerkleA(seedMerkle.replicaA);
-    setMerkleB(seedMerkle.replicaB);
-
     const seedQuorum = createSeedQuorumState();
     setQuorumConfig(seedQuorum.config);
     setQuorumNodes(seedQuorum.nodes);
     setQuorumVersion(seedQuorum.latestWrittenVersion);
 
-    announce(activeModule, 'info', 'Reset all cluster structures and capabilities to deterministic seed state.');
+    announce(
+      activeModule,
+      'info',
+      'Reset distributed graph, replicas, shards, and capabilities to deterministic seed state.'
+    );
+  };
+
+  const handleChangeOutputChannel = (channel: AccessibleOutputChannel) => {
+    setOutputChannel(channel);
+    announce(
+      activeModule,
+      'info',
+      `Accessible output channel set to ${CHANNEL_LABELS[channel]}.`
+    );
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--bg-canvas)] text-[var(--text-primary)]">
-      {/* Skip to main content link for keyboard, Braille, and screen reader users */}
+      {/* Skip to main content link */}
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-[var(--accent-primary)] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-[var(--accent-text-on)]"
@@ -261,16 +286,8 @@ export default function App() {
             `Motion preference set to ${next ? 'Reduced' : 'Standard'}.`
           );
         }}
-        brailleMode={brailleMode}
-        onToggleBrailleMode={() => {
-          const next = !brailleMode;
-          setBrailleMode(next);
-          announce(
-            activeModule,
-            'info',
-            `Braille 40-cell linear output mode ${next ? 'enabled' : 'disabled'}.`
-          );
-        }}
+        outputChannel={outputChannel}
+        onChangeOutputChannel={handleChangeOutputChannel}
         onResetCluster={handleResetCluster}
       />
 
@@ -287,7 +304,8 @@ export default function App() {
                 arcs={graphArcs}
                 capabilities={capabilities}
                 activeCapabilityId={activeCapabilityId}
-                brailleMode={brailleMode}
+                healthyShards={healthyShards}
+                outputChannelLabel={CHANNEL_LABELS[outputChannel]}
                 onUpdateGraph={(nextNodes, nextArcs) => {
                   setGraphNodes(nextNodes);
                   setGraphArcs(nextArcs);
@@ -296,50 +314,57 @@ export default function App() {
                   setCapabilities(nextCaps);
                   setActiveCapabilityId(nextActiveId);
                 }}
+                onOpenCapabilities={() => {
+                  setActiveModule('capabilities');
+                  announce('capabilities', 'info', 'Opened Capabilities Registry.');
+                }}
                 onAnnounce={(sev, msg) => announce('graph', sev, msg)}
               />
             )}
 
-            {activeModule === 'ring' && (
+            {activeModule === 'sync' && (
+              <SyncQuorumView
+                graphNodes={graphNodes}
+                graphArcs={graphArcs}
+                replicas={crdtReplicas}
+                onChangeReplicas={setCrdtReplicas}
+                merkleReplicaB={merkleReplicaB}
+                onChangeMerkleReplicaB={setMerkleReplicaB}
+                quorumConfig={quorumConfig}
+                quorumNodes={quorumNodes}
+                latestWrittenVersion={quorumVersion}
+                onUpdateQuorum={(cfg, nextNodes, nextVer) => {
+                  setQuorumConfig(cfg);
+                  setQuorumNodes(nextNodes);
+                  setQuorumVersion(nextVer);
+                }}
+                onAnnounce={(sev, msg) => announce('sync', sev, msg)}
+              />
+            )}
+
+            {activeModule === 'sharding' && (
               <HashRingView
+                graphNodes={graphNodes}
                 nodes={ringNodes}
                 entries={ringEntries}
                 replicationFactor={replicationFactor}
                 onChangeNodes={setRingNodes}
                 onChangeEntries={setRingEntries}
                 onChangeReplicationFactor={setReplicationFactor}
-                onAnnounce={(sev, msg) => announce('ring', sev, msg)}
+                onAnnounce={(sev, msg) => announce('sharding', sev, msg)}
               />
             )}
 
-            {activeModule === 'crdt' && (
-              <CrdtView
-                replicas={crdtReplicas}
-                onChangeReplicas={setCrdtReplicas}
-                onAnnounce={(sev, msg) => announce('crdt', sev, msg)}
-              />
-            )}
-
-            {activeModule === 'merkle' && (
-              <MerkleView
-                replicaA={merkleA}
-                replicaB={merkleB}
-                onChangeReplicaB={setMerkleB}
-                onAnnounce={(sev, msg) => announce('merkle', sev, msg)}
-              />
-            )}
-
-            {activeModule === 'quorum' && (
-              <QuorumView
-                config={quorumConfig}
-                nodes={quorumNodes}
-                latestWrittenVersion={quorumVersion}
-                onUpdateState={(cfg, nextNodes, nextVer) => {
-                  setQuorumConfig(cfg);
-                  setQuorumNodes(nextNodes);
-                  setQuorumVersion(nextVer);
+            {activeModule === 'capabilities' && (
+              <CapabilitiesView
+                nodes={graphNodes}
+                capabilities={capabilities}
+                activeCapabilityId={activeCapabilityId}
+                onUpdateCapabilities={(nextCaps, nextActiveId) => {
+                  setCapabilities(nextCaps);
+                  setActiveCapabilityId(nextActiveId);
                 }}
-                onAnnounce={(sev, msg) => announce('quorum', sev, msg)}
+                onAnnounce={(sev, msg) => announce('capabilities', sev, msg)}
               />
             )}
           </div>
@@ -349,7 +374,8 @@ export default function App() {
               activeModule={activeModule}
               latestSeverity={latestSeverity}
               latestAnnouncement={latestAnnouncement}
-              brailleMode={brailleMode}
+              outputChannel={outputChannel}
+              onChangeOutputChannel={handleChangeOutputChannel}
               events={events}
               onClearEvents={() => {
                 setEvents([]);
@@ -363,8 +389,8 @@ export default function App() {
 
       <footer className="border-t border-[var(--border-hairline)] bg-[var(--bg-surface)] py-4">
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-2 px-4 text-xs text-[var(--text-muted)] sm:px-6">
-          <span>Lattice · Accessible Distributed Data Structure System</span>
-          <span>Deaf-blind Braille ready · Object-Capability enforced · Zero-audio dependency</span>
+          <span>Lattice · Accessible Distributed Graph &amp; Object-Capability System</span>
+          <span>Braille · Protactile · ASL ready · Zero-audio dependency</span>
         </div>
       </footer>
 

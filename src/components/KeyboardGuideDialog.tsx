@@ -10,12 +10,14 @@ const SHORTCUT_ROWS = [
   {
     keys: 'Tab / Shift + Tab',
     scope: 'Global',
-    action: 'Move focus forward or backward across all interactive controls, forms, and visual nodes.',
+    action:
+      'Move focus forward or backward across all interactive controls, forms, shard zones, and tables.',
   },
   {
     keys: 'ArrowLeft / ArrowRight',
     scope: 'Graph, Ring & Merkle Tree',
-    action: 'Step sequentially across graph nodes, ring keys, or Merkle tree nodes without using a mouse.',
+    action:
+      'Step sequentially across distributed graph nodes, ring keys, or Merkle tree buckets without using a mouse.',
   },
   {
     keys: 'Home / End',
@@ -23,14 +25,16 @@ const SHORTCUT_ROWS = [
     action: 'Jump directly to the first or last node in the active structure.',
   },
   {
-    keys: 'Alt + 1..5',
+    keys: 'Alt + 1..4',
     scope: 'Global',
-    action: 'Switch directly between Graph & OCap, Hash Ring, CRDT Replicas, Merkle Sync, and Quorum Lab.',
+    action:
+      'Switch directly between Graph Workspace, Sync & Quorum, Hash Sharding, and Capabilities.',
   },
   {
-    keys: 'Braille Output Toggle',
-    scope: 'Toolbar',
-    action: 'Formats all live announcements into 40-cell refreshable Braille lines with optional Grade-1 Unicode Braille dots.',
+    keys: 'Output Channel',
+    scope: 'Toolbar / Announcer',
+    action:
+      'Switch live announcements between Standard, 40-cell Braille (+ Unicode dots), Protactile Language (+ haptic pulse patterns), and American Sign Language (ASL Gloss + step-by-step Sign Cards).',
   },
   {
     keys: '?',
@@ -83,7 +87,7 @@ export const KeyboardGuideDialog: React.FC<KeyboardGuideDialogProps> = ({ open, 
               Keyboard Navigation and Accessibility Guide
             </h2>
             <p className="mt-1 text-sm text-[var(--text-secondary)]">
-              Every distributed visualization includes a keyboard-operable canvas and a structured tabular view.
+              Every distributed visualization includes a keyboard-operable canvas, structured tables, and Braille, Protactile, and ASL outputs.
             </p>
           </div>
           <button

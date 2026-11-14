@@ -2,25 +2,26 @@ import React, { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
+  Eye,
   KeyRound,
   Layers,
+  Lock,
   Play,
   Plus,
   Search,
   ShieldAlert,
   ShieldCheck,
   Trash2,
-  XCircle,
 } from 'lucide-react';
 import {
-  attenuateCapability,
+  assignShardByConsistentHash,
+  describeGraphNodeAccessibility,
+} from '../core/accessibilityOutput';
+import {
   executeGraphBatch,
   isCapabilityActive,
   queryGraph,
-  revokeCapability,
   type BatchOperation,
-  type CapabilityRight,
-  type CapabilityScope,
   type CapabilityToken,
   type GraphArc,
   type GraphEntityStatus,
@@ -33,20 +34,18 @@ interface GraphOcapViewProps {
   arcs: GraphArc[];
   capabilities: CapabilityToken[];
   activeCapabilityId: string;
-  brailleMode: boolean;
+  healthyShards: Array<'Shard-A' | 'Shard-B' | 'Shard-C'>;
+  outputChannelLabel: string;
   onUpdateGraph: (nodes: GraphNode[], arcs: GraphArc[]) => void;
   onUpdateCapabilities: (caps: CapabilityToken[], activeId: string) => void;
+  onOpenCapabilities: () => void;
   onAnnounce: (severity: 'info' | 'warning' | 'success', summary: string) => void;
 }
 
-const ALL_RIGHTS: CapabilityRight[] = [
-  'read',
-  'create',
-  'update',
-  'delete',
-  'batch',
-  'delegate',
-  'revoke',
+const SHARD_LIST: Array<'Shard-A' | 'Shard-B' | 'Shard-C'> = [
+  'Shard-A',
+  'Shard-B',
+  'Shard-C',
 ];
 
 const SHARD_COLORS: Record<GraphNode['shard'], string> = {
@@ -55,14 +54,25 @@ const SHARD_COLORS: Record<GraphNode['shard'], string> = {
   'Shard-C': '#d97706',
 };
 
+const SHARD_ZONES: Record<
+  GraphNode['shard'],
+  { x: number; width: number; centerX: number; tactileZone: string }
+> = {
+  'Shard-A': { x: 12, width: 170, centerX: 97, tactileZone: 'PT Zone A (Left)' },
+  'Shard-B': { x: 194, width: 172, centerX: 280, tactileZone: 'PT Zone B (Center)' },
+  'Shard-C': { x: 378, width: 170, centerX: 463, tactileZone: 'PT Zone C (Right)' },
+};
+
 export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
   nodes,
   arcs,
   capabilities,
   activeCapabilityId,
-  brailleMode,
+  healthyShards,
+  outputChannelLabel,
   onUpdateGraph,
   onUpdateCapabilities,
+  onOpenCapabilities,
   onAnnounce,
 }) => {
   // Selection Groups
@@ -84,6 +94,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
   const [newNodeId, setNewNodeId] = useState('');
   const [newNodeLabel, setNewNodeLabel] = useState('');
   const [newNodeShard, setNewNodeShard] = useState<GraphNode['shard']>('Shard-B');
+  const [autoAssignShard, setAutoAssignShard] = useState(true);
   const [newNodeGroup, setNewNodeGroup] = useState('edge');
 
   // Create Arc form
@@ -109,17 +120,6 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
     text: string;
   } | null>(null);
 
-  // OCap Attenuation form
-  const [attParentId, setAttParentId] = useState(activeCapabilityId);
-  const [attLabel, setAttLabel] = useState('');
-  const [attHolder, setAttHolder] = useState('');
-  const [attScope, setAttScope] = useState<CapabilityScope>('Shard-B');
-  const [attRights, setAttRights] = useState<CapabilityRight[]>(['read', 'update']);
-  const [ocapFeedback, setOcapFeedback] = useState<{
-    type: 'error' | 'success';
-    text: string;
-  } | null>(null);
-
   const activeCap = useMemo(
     () => capabilities.find((c) => c.id === activeCapabilityId) ?? capabilities[0],
     [capabilities, activeCapabilityId]
@@ -131,7 +131,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
   );
 
   const hasReadRight = useMemo(
-    () => activeCapValid && activeCap?.rights.includes('read'),
+    () => Boolean(activeCapValid && activeCap?.rights.includes('read')),
     [activeCapValid, activeCap]
   );
 
@@ -147,6 +147,37 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
 
   const selectedNodeSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
   const selectedArcSet = useMemo(() => new Set(selectedArcIds), [selectedArcIds]);
+
+  const effectiveNewNodeShard = useMemo(() => {
+    if (!autoAssignShard) return newNodeShard;
+    return assignShardByConsistentHash(newNodeId.trim() || 'N-next', healthyShards);
+  }, [autoAssignShard, newNodeId, newNodeShard, healthyShards]);
+
+  // Compute deterministic layout inside the 3 Shard Cluster zones so shard membership is visually unmistakable
+  const nodeVisualCoords = useMemo(() => {
+    const coords: Record<string, { x: number; y: number }> = {};
+    for (const shard of SHARD_LIST) {
+      const zone = SHARD_ZONES[shard];
+      const shardNodes = nodes.filter((n) => n.shard === shard);
+      shardNodes.forEach((n, idx) => {
+        const colOffset =
+          shardNodes.length === 1
+            ? 0
+            : idx % 2 === 0
+              ? -32
+              : 32;
+        const row = shardNodes.length > 2 ? Math.floor(idx / 2) : idx;
+        const totalRows = shardNodes.length > 2 ? Math.ceil(shardNodes.length / 2) : shardNodes.length;
+        const spacing = totalRows <= 1 ? 0 : Math.min(110, 175 / Math.max(1, totalRows - 1));
+        const startY = totalRows <= 1 ? 165 : 98;
+        coords[n.id] = {
+          x: zone.centerX + colOffset,
+          y: startY + row * spacing,
+        };
+      });
+    }
+    return coords;
+  }, [nodes]);
 
   const runImmediateOps = (ops: BatchOperation[], successMsg: string) => {
     const res = executeGraphBatch(
@@ -168,40 +199,34 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
     return true;
   };
 
-  const buildCreateNodeOp = (): { op?: BatchOperation; error?: string } => {
+  const buildCreateNodeOp = (): {
+    op?: BatchOperation;
+    shard?: GraphNode['shard'];
+    error?: string;
+  } => {
     const id = newNodeId.trim();
     const label = newNodeLabel.trim();
     if (!id || !label) {
       return { error: 'Node ID and Label are required to create a node.' };
     }
-    const candidates: Array<{ x: number; y: number }> = [
-      { x: 90, y: 205 },
-      { x: 170, y: 140 },
-      { x: 340, y: 70 },
-      { x: 340, y: 225 },
-      { x: 170, y: 240 },
-      { x: 440, y: 65 },
-    ];
-    let chosen = candidates[nodes.length % candidates.length];
-    for (const c of candidates) {
-      const collides = nodes.some((n) => Math.hypot(n.x - c.x, n.y - c.y) < 58);
-      if (!collides) {
-        chosen = c;
-        break;
-      }
-    }
+    const chosenShard = autoAssignShard
+      ? assignShardByConsistentHash(id, healthyShards)
+      : newNodeShard;
+    const zone = SHARD_ZONES[chosenShard];
+    const existingInShard = nodes.filter((n) => n.shard === chosenShard).length;
     return {
+      shard: chosenShard,
       op: {
         id: `op-cn-${Date.now()}`,
         kind: 'create-node',
         node: {
           id,
           label,
-          shard: newNodeShard,
+          shard: chosenShard,
           status: 'active',
           groupTag: newNodeGroup.trim() || 'general',
-          x: chosen.x,
-          y: chosen.y,
+          x: zone.centerX,
+          y: 100 + existingInShard * 75,
         },
       },
     };
@@ -236,20 +261,25 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
 
   const handleCreateNode = (queueOnly: boolean) => {
     const built = buildCreateNodeOp();
-    if (built.error || !built.op) {
+    if (built.error || !built.op || !built.shard) {
       setOpFeedback({ type: 'error', text: built.error ?? 'Invalid node input.' });
       return;
     }
+    const id = newNodeId.trim();
+    const label = newNodeLabel.trim();
     if (queueOnly) {
       setBatchQueue((prev) => [...prev, built.op!]);
-      setOpFeedback({ type: 'success', text: `Queued creation of node ${newNodeId.trim()}.` });
-      onAnnounce('info', `Queued node ${newNodeId.trim()} into batch.`);
+      setOpFeedback({
+        type: 'success',
+        text: `Queued creation of node ${id} in ${built.shard}.`,
+      });
+      onAnnounce('info', `Queued node ${id} (${built.shard}) into batch.`);
       setNewNodeId('');
       setNewNodeLabel('');
     } else if (
       runImmediateOps(
         [built.op],
-        `Created node ${newNodeId.trim()} (${newNodeLabel.trim()}) on ${newNodeShard}.`
+        `Created node ${id} (${label}) on ${built.shard}.`
       )
     ) {
       setNewNodeId('');
@@ -263,16 +293,17 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
       setOpFeedback({ type: 'error', text: built.error ?? 'Invalid arc input.' });
       return;
     }
+    const id = newArcId.trim();
     if (queueOnly) {
       setBatchQueue((prev) => [...prev, built.op!]);
-      setOpFeedback({ type: 'success', text: `Queued creation of arc ${newArcId.trim()}.` });
-      onAnnounce('info', `Queued arc ${newArcId.trim()} into batch.`);
+      setOpFeedback({ type: 'success', text: `Queued creation of arc ${id}.` });
+      onAnnounce('info', `Queued arc ${id} (${newArcSource} -> ${newArcTarget}) into batch.`);
       setNewArcId('');
       setNewArcLabel('');
     } else if (
       runImmediateOps(
         [built.op],
-        `Created arc ${newArcId.trim()} (${newArcSource} -> ${newArcTarget}).`
+        `Created arc ${id} (${newArcSource} -> ${newArcTarget}).`
       )
     ) {
       setNewArcId('');
@@ -327,7 +358,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
     } else {
       runImmediateOps(
         ops,
-        `Updated ${selectedNodeIds.length} node(s) and ${selectedArcIds.length} arc(s) to status "${groupTargetStatus}".`
+        `Updated ${selectedNodeIds.length} node(s) and ${selectedArcIds.length} arc(s) to "${groupTargetStatus}" on ${groupTargetShard}.`
       );
     }
   };
@@ -398,49 +429,6 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
     onAnnounce('success', res.summary);
   };
 
-  const handleAttenuateSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!attLabel.trim() || !attHolder.trim()) {
-      setOcapFeedback({
-        type: 'error',
-        text: 'Token label and holder name are required to mint an attenuated capability.',
-      });
-      return;
-    }
-    const newId = `cap-${Date.now().toString(36).slice(-4)}`;
-    const result = attenuateCapability(attParentId, capabilities, {
-      id: newId,
-      label: attLabel,
-      holder: attHolder,
-      rights: attRights,
-      scope: attScope,
-    });
-    if (!result.ok) {
-      setOcapFeedback({ type: 'error', text: result.error });
-      onAnnounce('warning', result.error);
-      return;
-    }
-    onUpdateCapabilities([...capabilities, result.token], activeCapabilityId);
-    setAttLabel('');
-    setAttHolder('');
-    const msg = `Minted attenuated capability "${result.token.label}" (${result.token.id}) scoped to ${result.token.scope}.`;
-    setOcapFeedback({ type: 'success', text: msg });
-    onAnnounce('success', msg);
-  };
-
-  const handleRevokeCap = (targetId: string) => {
-    const res = revokeCapability(capabilities, targetId, activeCapabilityId);
-    if (!res.ok) {
-      setOcapFeedback({ type: 'error', text: res.error });
-      onAnnounce('warning', res.error);
-      return;
-    }
-    onUpdateCapabilities(res.caps, activeCapabilityId);
-    const msg = `Revoked capability ${targetId} and invalidated any attenuated descendant tokens.`;
-    setOcapFeedback({ type: 'success', text: msg });
-    onAnnounce('warning', msg);
-  };
-
   const handleSvgKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (nodes.length === 0) return;
     const idx = nodes.findIndex((n) => n.id === focusedNodeId);
@@ -461,10 +449,11 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
       return;
     }
     const chosen = nodes[nextIdx];
+    const desc = describeGraphNodeAccessibility(chosen, arcs, activeCap, capabilities);
     setFocusedNodeId(chosen.id);
     onAnnounce(
       'info',
-      `Focused node ${chosen.id} (${chosen.label}) in ${chosen.shard}, status ${chosen.status}.`
+      `Focused node ${chosen.id} (${chosen.label}) in ${chosen.shard}, status ${chosen.status}, OCap ${desc.guardLabel}.`
     );
   };
 
@@ -487,14 +476,17 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
 
   return (
     <section aria-labelledby="graph-ocap-heading" className="space-y-6">
-      {/* Header + Active Object-Capability Token Switcher */}
+      {/* Header + Inline Active Object-Capability Guardrail Strip */}
       <div className="flex flex-col gap-4 border-b border-[var(--border-hairline)] pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 max-w-xl">
-          <h1 id="graph-ocap-heading" className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-            Distributed Graph and Object-Capability Security
+          <h1
+            id="graph-ocap-heading"
+            className="text-2xl font-bold tracking-tight text-[var(--text-primary)]"
+          >
+            Distributed Graph Workspace
           </h1>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Create, query, group-select, and batch-mutate nodes and directed arcs under attenuated capability tokens.
+            Edit sharded nodes and directed arcs in groups or atomic batches with live Object-Capability enforcement across {SHARD_LIST.length} shards.
           </p>
         </div>
 
@@ -531,6 +523,15 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
             </select>
           </div>
 
+          <button
+            type="button"
+            onClick={onOpenCapabilities}
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] whitespace-nowrap cursor-pointer"
+          >
+            <KeyRound className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
+            <span>Delegate / Revoke</span>
+          </button>
+
           <div
             className={`inline-flex min-h-[40px] items-center gap-1.5 text-xs font-semibold whitespace-nowrap ${
               activeCapValid
@@ -552,7 +553,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
         </div>
       </div>
 
-      {/* Feedback Banner (Assertive for capability denials / errors) */}
+      {/* Feedback Banner */}
       {opFeedback && (
         <div
           role={opFeedback.type === 'error' ? 'alert' : 'status'}
@@ -572,219 +573,45 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
         </div>
       )}
 
-      {/* Query & Group Selection Controls */}
-      <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              Query, Find, and Group-Select Nodes and Arcs
-            </h2>
-            <p className="text-xs text-[var(--text-muted)]">
-              Filter by identifier, shard, status, arc weight, or graph reachability, then select matching entities as a group.
-            </p>
-          </div>
-          <span className="font-mono text-xs tabular-nums text-[var(--text-secondary)]">
-            Matched: {queryResult.nodes.length}/{nodes.length} nodes · {queryResult.arcs.length}/{arcs.length} arcs
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
-          <div className="lg:col-span-2">
-            <label htmlFor="graph-query-text" className="block text-xs font-medium text-[var(--text-secondary)]">
-              Find by ID, Label, or Tag
-            </label>
-            <div className="relative mt-1">
-              <Search
-                className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-muted)]"
-                aria-hidden="true"
-              />
-              <input
-                id="graph-query-text"
-                type="search"
-                value={query.text}
-                onChange={(e) => setQuery((q) => ({ ...q, text: e.target.value }))}
-                placeholder="e.g. N1, Ledger, verify..."
-                className="w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] pl-8 pr-3 py-2 text-sm text-[var(--text-primary)]"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="graph-query-shard" className="block text-xs font-medium text-[var(--text-secondary)]">
-              Shard
-            </label>
-            <select
-              id="graph-query-shard"
-              value={query.shard}
-              onChange={(e) =>
-                setQuery((q) => ({
-                  ...q,
-                  shard: e.target.value as GraphQuery['shard'],
-                }))
-              }
-              className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
-            >
-              <option value="all">All Shards</option>
-              <option value="Shard-A">Shard-A</option>
-              <option value="Shard-B">Shard-B</option>
-              <option value="Shard-C">Shard-C</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="graph-query-status" className="block text-xs font-medium text-[var(--text-secondary)]">
-              Status
-            </label>
-            <select
-              id="graph-query-status"
-              value={query.status}
-              onChange={(e) =>
-                setQuery((q) => ({
-                  ...q,
-                  status: e.target.value as GraphQuery['status'],
-                }))
-              }
-              className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
-            >
-              <option value="all">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="maintenance">Maintenance</option>
-              <option value="isolated">Isolated</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="graph-query-weight" className="block text-xs font-medium text-[var(--text-secondary)]">
-              Min Arc Weight
-            </label>
-            <input
-              id="graph-query-weight"
-              type="number"
-              min={0}
-              value={query.minWeight ?? ''}
-              onChange={(e) =>
-                setQuery((q) => ({
-                  ...q,
-                  minWeight: e.target.value === '' ? null : Number(e.target.value),
-                }))
-              }
-              placeholder="Any"
-              className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 font-mono text-sm text-[var(--text-primary)]"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="graph-query-reach" className="block text-xs font-medium text-[var(--text-secondary)]">
-              Reachable From
-            </label>
-            <select
-              id="graph-query-reach"
-              value={query.reachableFromNodeId}
-              onChange={(e) =>
-                setQuery((q) => ({ ...q, reachableFromNodeId: e.target.value }))
-              }
-              className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
-            >
-              <option value="">Any Node</option>
-              {nodes.map((n) => (
-                <option key={n.id} value={n.id}>
-                  {n.id} · {n.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Group selection actions */}
-        <div className="flex flex-wrap items-center gap-2.5 border-t border-[var(--border-hairline)] pt-3">
-          <button
-            type="button"
-            onClick={() => {
-              const ids = queryResult.nodes.map((n) => n.id);
-              setSelectedNodeIds(ids);
-              onAnnounce('info', `Selected ${ids.length} matched node(s) as active group.`);
-            }}
-            className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
-          >
-            Select Matched Nodes ({queryResult.nodes.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const ids = queryResult.arcs.map((a) => a.id);
-              setSelectedArcIds(ids);
-              onAnnounce('info', `Selected ${ids.length} matched arc(s) as active group.`);
-            }}
-            className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
-          >
-            Select Matched Arcs ({queryResult.arcs.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const incident = arcs
-                .filter(
-                  (a) =>
-                    selectedNodeSet.has(a.source) || selectedNodeSet.has(a.target)
-                )
-                .map((a) => a.id);
-              setSelectedArcIds(incident);
-              onAnnounce('info', `Selected ${incident.length} incident arc(s) connected to chosen nodes.`);
-            }}
-            className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
-          >
-            Select Incident Arcs
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedNodeIds([]);
-              setSelectedArcIds([]);
-              onAnnounce('info', 'Cleared node and arc group selection.');
-            }}
-            className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
-          >
-            Clear Group
-          </button>
-          <span className="ml-auto font-mono text-xs text-[var(--text-muted)]">
-            Selected Group: {selectedNodeIds.length} nodes · {selectedArcIds.length} arcs
-          </span>
-        </div>
-      </div>
-
-      {/* Topology Diagram + Linear Braille Adjacency + Batch & Group Action Deck */}
+      {/* Main Workspace: Sharded Topology + Group/Batch Action Deck */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Left: Graph Topology SVG + Linear Braille-Ready Summary */}
+        {/* Left: Visual Shard Zones & OCap Guarded Graph SVG + Linear Summary */}
         <div className="lg:col-span-7 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                Distributed Graph Topology
+                Sharded Distributed Graph &amp; OCap Guardrails
               </h2>
               <p className="text-xs text-[var(--text-muted)]">
-                Use ArrowLeft and ArrowRight inside the diagram to inspect nodes, or use the accessible tables below.
+                Each column represents a physical shard. Nodes show active capability access ({outputChannelLabel} output active).
               </p>
             </div>
+            <span className="font-mono text-xs tabular-nums text-[var(--text-secondary)]">
+              {nodes.length} nodes · {arcs.length} arcs
+            </span>
           </div>
 
           {!hasReadRight ? (
-            <div role="alert" className="rounded-lg bg-[var(--bg-subtle)] p-6 text-sm text-[var(--text-secondary)]">
-              Active token lacks &quot;read&quot; authority or has been revoked. Switch to a valid capability token to inspect graph topology.
+            <div
+              role="alert"
+              className="rounded-lg bg-[var(--bg-subtle)] p-6 text-sm text-[var(--text-secondary)]"
+            >
+              Active token lacks &quot;read&quot; authority or has been revoked. Switch to a valid capability token to inspect distributed graph topology.
             </div>
           ) : (
             <>
               <div
                 tabIndex={0}
                 role="region"
-                aria-label="Distributed graph topology diagram. Use Left and Right arrow keys to step through nodes."
+                aria-label="Sharded distributed graph diagram. Use Left and Right arrow keys to inspect nodes and their OCap guardrails."
                 onKeyDown={handleSvgKeyDown}
                 className="overflow-x-auto rounded-lg bg-[var(--bg-subtle)] p-3"
               >
                 <svg
-                  viewBox="0 0 520 290"
-                  className="mx-auto h-64 w-full min-w-[460px]"
+                  viewBox="0 0 560 310"
+                  className="mx-auto h-72 w-full min-w-[500px]"
                   role="img"
-                  aria-label={`Directed graph with ${nodes.length} nodes and ${arcs.length} arcs`}
+                  aria-label={`Distributed graph across 3 shards with ${nodes.length} nodes and ${arcs.length} arcs`}
                 >
                   <defs>
                     <marker
@@ -800,23 +627,82 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                     </marker>
                   </defs>
 
-                  {/* Arcs */}
+                  {/* 3 Distinct Shard Cluster Zones */}
+                  {SHARD_LIST.map((shard) => {
+                    const zone = SHARD_ZONES[shard];
+                    const isShardInCap =
+                      activeCapValid &&
+                      (activeCap?.scope === 'all' || activeCap?.scope === shard);
+                    const count = nodes.filter((n) => n.shard === shard).length;
+                    return (
+                      <g key={shard}>
+                        <rect
+                          x={zone.x}
+                          y={12}
+                          width={zone.width}
+                          height={286}
+                          rx={10}
+                          fill="var(--bg-surface)"
+                          fillOpacity={isShardInCap ? 0.92 : 0.45}
+                          stroke={
+                            isShardInCap ? SHARD_COLORS[shard] : 'var(--border-hairline)'
+                          }
+                          strokeWidth={isShardInCap ? 1.5 : 1}
+                          strokeDasharray={isShardInCap ? undefined : '4 4'}
+                        />
+                        <text
+                          x={zone.x + 12}
+                          y={32}
+                          className="fill-[var(--text-primary)] text-[11px] font-mono font-bold"
+                        >
+                          {shard} ({count})
+                        </text>
+                        <text
+                          x={zone.x + 12}
+                          y={46}
+                          className={`text-[9px] font-semibold ${
+                            isShardInCap
+                              ? 'fill-emerald-700 dark:fill-emerald-400'
+                              : 'fill-red-600 dark:fill-red-400'
+                          }`}
+                        >
+                          {isShardInCap ? 'OCap: In Scope' : 'OCap: Locked'}
+                        </text>
+                      </g>
+                    );
+                  })}
+
+                  {/* Directed Arcs */}
                   {arcs.map((arc) => {
-                    const src = nodes.find((n) => n.id === arc.source);
-                    const tgt = nodes.find((n) => n.id === arc.target);
+                    const src = nodeVisualCoords[arc.source];
+                    const tgt = nodeVisualCoords[arc.target];
                     if (!src || !tgt) return null;
+                    const dx = tgt.x - src.x;
+                    const dy = tgt.y - src.y;
+                    const dist = Math.hypot(dx, dy) || 1;
+                    const startPad = Math.min(22, dist * 0.25);
+                    const endPad = Math.min(25, dist * 0.35);
+                    const x1 = src.x + (dx / dist) * startPad;
+                    const y1 = src.y + (dy / dist) * startPad;
+                    const x2 = tgt.x - (dx / dist) * endPad;
+                    const y2 = tgt.y - (dy / dist) * endPad;
                     const isMatched = matchedArcSet.has(arc.id);
                     const isSelected = selectedArcSet.has(arc.id);
-                    const midX = (src.x + tgt.x) / 2;
-                    const midY = (src.y + tgt.y) / 2 - 8;
+                    const isSteep = Math.abs(dx) < Math.abs(dy);
+                    const nx = isSteep ? (-dy / dist) * 18 : 0;
+                    const ny = isSteep ? (dx / dist) * 18 : -10;
+                    const midX = (x1 + x2) / 2 + nx;
+                    const midY = (y1 + y2) / 2 + ny;
+                    const labelText = `${arc.id}(${arc.weight})`;
+                    const pillW = labelText.length * 6.2 + 8;
                     return (
                       <g key={arc.id} opacity={isMatched ? 1 : 0.25}>
                         <title>{`Arc ${arc.id}: ${arc.source} -> ${arc.target} (${arc.label}, w=${arc.weight})`}</title>
                         <line
-                          x1={src.x}
-                          y1={src.y}
-                          x2={tgt.x}
-                          y2={tgt.y}
+                          x1={x1}
+                          y1={y1}
+                          x2={x2}
+                          y2={y2}
                           stroke={
                             isSelected ? 'var(--accent-primary)' : 'var(--text-muted)'
                           }
@@ -824,23 +710,48 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                           strokeDasharray={arc.status === 'maintenance' ? '5 4' : undefined}
                           markerEnd="url(#arc-arrow)"
                         />
+                        <rect
+                          x={midX - pillW / 2}
+                          y={midY - 10}
+                          width={pillW}
+                          height={14}
+                          rx={3}
+                          fill="var(--bg-surface)"
+                          fillOpacity={0.92}
+                        />
                         <text
                           x={midX}
                           y={midY}
                           textAnchor="middle"
                           className="fill-[var(--text-primary)] text-[10px] font-mono font-semibold"
                         >
-                          {arc.id}({arc.weight})
+                          {labelText}
                         </text>
                       </g>
                     );
                   })}
 
-                  {/* Nodes */}
+                  {/* Nodes with OCap Guardrail Badges */}
                   {nodes.map((node) => {
+                    const pos = nodeVisualCoords[node.id] ?? { x: node.x, y: node.y };
                     const isMatched = matchedNodeSet.has(node.id);
                     const isSelected = selectedNodeSet.has(node.id);
                     const isFocused = focusedNodeId === node.id;
+                    const desc = describeGraphNodeAccessibility(
+                      node,
+                      arcs,
+                      activeCap,
+                      capabilities
+                    );
+                    const guardTag = !activeCapValid
+                      ? 'REVOKED'
+                      : !desc.canUpdate && desc.guardLabel.startsWith('Locked')
+                        ? 'LOCKED'
+                        : desc.canDelete
+                          ? 'RWD'
+                          : desc.canUpdate
+                            ? 'RW'
+                            : 'RO';
                     return (
                       <g
                         key={node.id}
@@ -850,16 +761,17 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                           setFocusedNodeId(node.id);
                           onAnnounce(
                             'info',
-                            `Inspected node ${node.id} (${node.label}) in ${node.shard}.`
+                            `Inspected node ${node.id} (${node.label}) in ${node.shard} · OCap: ${desc.guardLabel}.`
                           );
                         }}
                       >
-                        <title>{`${node.id}: ${node.label} (${node.shard}, ${node.status})`}</title>
+                        <title>{`${node.id}: ${node.label} (${node.shard}, ${node.status}, OCap: ${desc.guardLabel})`}</title>
                         <circle
-                          cx={node.x}
-                          cy={node.y}
+                          cx={pos.x}
+                          cy={pos.y}
                           r={isFocused ? 23 : 20}
                           fill={SHARD_COLORS[node.shard]}
+                          fillOpacity={guardTag === 'LOCKED' || guardTag === 'REVOKED' ? 0.55 : 1}
                           stroke={
                             isSelected
                               ? 'var(--text-primary)'
@@ -868,20 +780,28 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                           strokeWidth={isSelected ? 3.5 : 2}
                         />
                         <text
-                          x={node.x}
-                          y={node.y + 4}
+                          x={pos.x}
+                          y={pos.y + 4}
                           textAnchor="middle"
                           className="fill-white text-[11px] font-mono font-bold"
                         >
                           {node.id}
                         </text>
                         <text
-                          x={node.x}
-                          y={node.y + 34}
+                          x={pos.x}
+                          y={pos.y + 33}
                           textAnchor="middle"
                           className="fill-[var(--text-primary)] text-[10px] font-semibold"
                         >
                           {node.label}
+                        </text>
+                        <text
+                          x={pos.x}
+                          y={pos.y + 44}
+                          textAnchor="middle"
+                          className="fill-[var(--text-muted)] text-[9px] font-mono font-semibold"
+                        >
+                          [{guardTag}]
                         </text>
                       </g>
                     );
@@ -889,14 +809,20 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 </svg>
               </div>
 
-              {/* Linear Deaf-Blind / Braille Adjacency Readout */}
+              {/* Linear Deaf-Blind / Braille / Protactile Adjacency Summary */}
               <div className="border-t border-[var(--border-hairline)] pt-3">
                 <h3 className="text-xs font-semibold text-[var(--text-muted)]">
-                  Linear Adjacency Summary {brailleMode ? '(Braille-Compact)' : ''}
+                  Linear Shard, OCap &amp; Adjacency Summary
                 </h3>
                 <ul className="mt-2 space-y-1 font-mono text-xs text-[var(--text-secondary)]">
                   {queryResult.nodes.map((n) => {
                     const outgoing = queryResult.arcs.filter((a) => a.source === n.id);
+                    const desc = describeGraphNodeAccessibility(
+                      n,
+                      arcs,
+                      activeCap,
+                      capabilities
+                    );
                     const outText =
                       outgoing.length > 0
                         ? outgoing
@@ -905,7 +831,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                         : 'no outgoing arcs';
                     return (
                       <li key={n.id}>
-                        {n.id} [{n.shard}|{n.status}] :: {outText}
+                        {n.id} [{n.shard}|{n.status}|OCap:{desc.guardLabel}] :: {outText}
                       </li>
                     );
                   })}
@@ -915,22 +841,24 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
           )}
         </div>
 
-        {/* Right: Group Operations & Batch Queue */}
+        {/* Right: Group Operations & Atomic Batch Queue */}
         <div className="lg:col-span-5 space-y-6">
-          {/* Group Batch Mutation Panel */}
           <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 space-y-4">
             <div>
               <h2 className="text-base font-semibold text-[var(--text-primary)]">
                 Group Operations ({selectedNodeIds.length} Nodes · {selectedArcIds.length} Arcs)
               </h2>
               <p className="text-xs text-[var(--text-muted)]">
-                Update or delete the selected node and arc group immediately or queue into an atomic batch.
+                Update status, migrate shard, or delete the chosen group immediately or queue into an atomic batch.
               </p>
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label htmlFor="group-status-select" className="block text-xs font-medium text-[var(--text-secondary)]">
+                <label
+                  htmlFor="group-status-select"
+                  className="block text-xs font-medium text-[var(--text-secondary)]"
+                >
                   New Status
                 </label>
                 <select
@@ -945,8 +873,11 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 </select>
               </div>
               <div>
-                <label htmlFor="group-shard-select" className="block text-xs font-medium text-[var(--text-secondary)]">
-                  Node Shard
+                <label
+                  htmlFor="group-shard-select"
+                  className="block text-xs font-medium text-[var(--text-secondary)]"
+                >
+                  Target Shard
                 </label>
                 <select
                   id="group-shard-select"
@@ -960,7 +891,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 </select>
               </div>
               <div>
-                <label htmlFor="group-weight-input" className="block text-xs font-medium text-[var(--text-secondary)]">
+                <label
+                  htmlFor="group-weight-input"
+                  className="block text-xs font-medium text-[var(--text-secondary)]"
+                >
                   Arc Weight
                 </label>
                 <input
@@ -973,7 +907,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 />
               </div>
               <div>
-                <label htmlFor="group-tag-input" className="block text-xs font-medium text-[var(--text-secondary)]">
+                <label
+                  htmlFor="group-tag-input"
+                  className="block text-xs font-medium text-[var(--text-secondary)]"
+                >
                   Group Tag (Optional)
                 </label>
                 <input
@@ -1080,15 +1017,29 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
         </div>
       </div>
 
-      {/* Create Node & Create Arc Forms */}
+      {/* Create Node (with Consistent-Hash Auto-Sharding) & Create Arc Forms */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 space-y-4">
-          <h2 className="text-base font-semibold text-[var(--text-primary)]">
-            Create Node
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">
+              Create Node
+            </h2>
+            <label className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoAssignShard}
+                onChange={(e) => setAutoAssignShard(e.target.checked)}
+                className="h-3.5 w-3.5 accent-[var(--accent-primary)]"
+              />
+              <span>Auto-Shard by Hash ({effectiveNewNodeShard})</span>
+            </label>
+          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label htmlFor="create-node-id" className="block text-xs font-medium text-[var(--text-secondary)]">
+              <label
+                htmlFor="create-node-id"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
                 Node ID
               </label>
               <input
@@ -1101,7 +1052,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               />
             </div>
             <div>
-              <label htmlFor="create-node-label" className="block text-xs font-medium text-[var(--text-secondary)]">
+              <label
+                htmlFor="create-node-label"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
                 Node Label
               </label>
               <input
@@ -1114,14 +1068,18 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               />
             </div>
             <div>
-              <label htmlFor="create-node-shard" className="block text-xs font-medium text-[var(--text-secondary)]">
-                Shard
+              <label
+                htmlFor="create-node-shard"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                Shard {autoAssignShard ? '(Hash-Derived)' : '(Manual)'}
               </label>
               <select
                 id="create-node-shard"
-                value={newNodeShard}
+                value={effectiveNewNodeShard}
+                disabled={autoAssignShard}
                 onChange={(e) => setNewNodeShard(e.target.value as GraphNode['shard'])}
-                className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
+                className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)] disabled:opacity-70"
               >
                 <option value="Shard-A">Shard-A</option>
                 <option value="Shard-B">Shard-B</option>
@@ -1129,7 +1087,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               </select>
             </div>
             <div>
-              <label htmlFor="create-node-group" className="block text-xs font-medium text-[var(--text-secondary)]">
+              <label
+                htmlFor="create-node-group"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
                 Group Tag
               </label>
               <input
@@ -1166,7 +1127,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
-              <label htmlFor="create-arc-id" className="block text-xs font-medium text-[var(--text-secondary)]">
+              <label
+                htmlFor="create-arc-id"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
                 Arc ID
               </label>
               <input
@@ -1179,7 +1143,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               />
             </div>
             <div>
-              <label htmlFor="create-arc-source" className="block text-xs font-medium text-[var(--text-secondary)]">
+              <label
+                htmlFor="create-arc-source"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
                 Source Node
               </label>
               <select
@@ -1196,7 +1163,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               </select>
             </div>
             <div>
-              <label htmlFor="create-arc-target" className="block text-xs font-medium text-[var(--text-secondary)]">
+              <label
+                htmlFor="create-arc-target"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
                 Target Node
               </label>
               <select
@@ -1213,7 +1183,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               </select>
             </div>
             <div>
-              <label htmlFor="create-arc-label" className="block text-xs font-medium text-[var(--text-secondary)]">
+              <label
+                htmlFor="create-arc-label"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
                 Arc Label
               </label>
               <input
@@ -1226,7 +1199,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               />
             </div>
             <div>
-              <label htmlFor="create-arc-weight" className="block text-xs font-medium text-[var(--text-secondary)]">
+              <label
+                htmlFor="create-arc-weight"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
                 Weight
               </label>
               <input
@@ -1239,7 +1215,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               />
             </div>
             <div>
-              <label htmlFor="create-arc-group" className="block text-xs font-medium text-[var(--text-secondary)]">
+              <label
+                htmlFor="create-arc-group"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
                 Group Tag
               </label>
               <input
@@ -1271,7 +1250,204 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
         </div>
       </div>
 
-      {/* Accessible Multi-Select Nodes & Arcs Tables */}
+      {/* Query & Group Selection Controls */}
+      <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">
+              Query, Find, and Group-Select Nodes and Arcs
+            </h2>
+            <p className="text-xs text-[var(--text-muted)]">
+              Filter by identifier, shard, status, arc weight, or BFS reachability, then select matching entities as a group.
+            </p>
+          </div>
+          <span className="font-mono text-xs tabular-nums text-[var(--text-secondary)]">
+            Matched: {queryResult.nodes.length}/{nodes.length} nodes · {queryResult.arcs.length}/{arcs.length} arcs
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
+          <div className="lg:col-span-2">
+            <label
+              htmlFor="graph-query-text"
+              className="block text-xs font-medium text-[var(--text-secondary)]"
+            >
+              Find by ID, Label, or Tag
+            </label>
+            <div className="relative mt-1">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-muted)]"
+                aria-hidden="true"
+              />
+              <input
+                id="graph-query-text"
+                type="search"
+                value={query.text}
+                onChange={(e) => setQuery((q) => ({ ...q, text: e.target.value }))}
+                placeholder="e.g. N1, Ledger, verify..."
+                className="w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] pl-8 pr-3 py-2 text-sm text-[var(--text-primary)]"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="graph-query-shard"
+              className="block text-xs font-medium text-[var(--text-secondary)]"
+            >
+              Shard
+            </label>
+            <select
+              id="graph-query-shard"
+              value={query.shard}
+              onChange={(e) =>
+                setQuery((q) => ({
+                  ...q,
+                  shard: e.target.value as GraphQuery['shard'],
+                }))
+              }
+              className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
+            >
+              <option value="all">All Shards</option>
+              <option value="Shard-A">Shard-A</option>
+              <option value="Shard-B">Shard-B</option>
+              <option value="Shard-C">Shard-C</option>
+            </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="graph-query-status"
+              className="block text-xs font-medium text-[var(--text-secondary)]"
+            >
+              Status
+            </label>
+            <select
+              id="graph-query-status"
+              value={query.status}
+              onChange={(e) =>
+                setQuery((q) => ({
+                  ...q,
+                  status: e.target.value as GraphQuery['status'],
+                }))
+              }
+              className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
+            >
+              <option value="all">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="maintenance">Maintenance</option>
+              <option value="isolated">Isolated</option>
+            </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="graph-query-weight"
+              className="block text-xs font-medium text-[var(--text-secondary)]"
+            >
+              Min Arc Weight
+            </label>
+            <input
+              id="graph-query-weight"
+              type="number"
+              min={0}
+              value={query.minWeight ?? ''}
+              onChange={(e) =>
+                setQuery((q) => ({
+                  ...q,
+                  minWeight: e.target.value === '' ? null : Number(e.target.value),
+                }))
+              }
+              placeholder="Any"
+              className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 font-mono text-sm text-[var(--text-primary)]"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="graph-query-reach"
+              className="block text-xs font-medium text-[var(--text-secondary)]"
+            >
+              Reachable From
+            </label>
+            <select
+              id="graph-query-reach"
+              value={query.reachableFromNodeId}
+              onChange={(e) =>
+                setQuery((q) => ({ ...q, reachableFromNodeId: e.target.value }))
+              }
+              className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
+            >
+              <option value="">Any Node</option>
+              {nodes.map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.id} · {n.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2.5 border-t border-[var(--border-hairline)] pt-3">
+          <button
+            type="button"
+            onClick={() => {
+              const ids = queryResult.nodes.map((n) => n.id);
+              setSelectedNodeIds(ids);
+              onAnnounce('info', `Selected ${ids.length} matched node(s) as active group.`);
+            }}
+            className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
+          >
+            Select Matched Nodes ({queryResult.nodes.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const ids = queryResult.arcs.map((a) => a.id);
+              setSelectedArcIds(ids);
+              onAnnounce('info', `Selected ${ids.length} matched arc(s) as active group.`);
+            }}
+            className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
+          >
+            Select Matched Arcs ({queryResult.arcs.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const incident = arcs
+                .filter(
+                  (a) =>
+                    selectedNodeSet.has(a.source) || selectedNodeSet.has(a.target)
+                )
+                .map((a) => a.id);
+              setSelectedArcIds(incident);
+              onAnnounce(
+                'info',
+                `Selected ${incident.length} incident arc(s) connected to chosen nodes.`
+              );
+            }}
+            className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
+          >
+            Select Incident Arcs
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedNodeIds([]);
+              setSelectedArcIds([]);
+              onAnnounce('info', 'Cleared node and arc group selection.');
+            }}
+            className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+          >
+            Clear Group
+          </button>
+          <span className="ml-auto font-mono text-xs text-[var(--text-muted)]">
+            Selected Group: {selectedNodeIds.length} nodes · {selectedArcIds.length} arcs
+          </span>
+        </div>
+      </div>
+
+      {/* Accessible Multi-Select Nodes & Arcs Directories with Live OCap Guard Column */}
       {hasReadRight && (
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5">
@@ -1283,16 +1459,32 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 <thead>
                   <tr className="border-b border-[var(--border-hairline)] text-[var(--text-muted)]">
                     <th scope="col" className="py-2 pr-2">Group</th>
-                    <th scope="col" className="py-2 pr-2">ID</th>
-                    <th scope="col" className="py-2 pr-2">Label</th>
-                    <th scope="col" className="py-2 pr-2">Shard / Tag</th>
-                    <th scope="col" className="py-2 pr-2">Status</th>
+                    <th scope="col" className="py-2 pr-2">Node</th>
+                    <th scope="col" className="py-2 pr-2">Shard · Status</th>
+                    <th scope="col" className="py-2 pr-2">OCap Guard</th>
                     <th scope="col" className="py-2 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border-hairline)]">
                   {queryResult.nodes.map((node) => {
                     const checked = selectedNodeSet.has(node.id);
+                    const desc = describeGraphNodeAccessibility(
+                      node,
+                      arcs,
+                      activeCap,
+                      capabilities
+                    );
+                    const GuardIcon = desc.canUpdate
+                      ? ShieldCheck
+                      : desc.guardLabel === 'Read-Only'
+                        ? Eye
+                        : Lock;
+                    const guardTone = desc.canUpdate
+                      ? 'text-emerald-700 dark:text-emerald-400'
+                      : desc.guardLabel === 'Read-Only'
+                        ? 'text-[var(--accent-primary)]'
+                        : 'text-red-600 dark:text-red-400';
+
                     return (
                       <tr key={node.id}>
                         <td className="py-2 pr-2">
@@ -1310,15 +1502,20 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                             className="h-4 w-4 accent-[var(--accent-primary)] cursor-pointer"
                           />
                         </td>
-                        <td className="py-2 pr-2 font-mono font-semibold text-[var(--text-primary)]">
-                          {node.id}
+                        <td className="py-2 pr-2">
+                          <span className="font-mono font-semibold text-[var(--text-primary)]">
+                            {node.id}
+                          </span>{' '}
+                          <span className="text-[var(--text-secondary)]">· {node.label}</span>
                         </td>
-                        <td className="py-2 pr-2 text-[var(--text-primary)]">{node.label}</td>
                         <td className="py-2 pr-2 font-mono text-[var(--text-secondary)]">
-                          {node.shard} · {node.groupTag}
+                          {node.shard} · {node.status}
                         </td>
-                        <td className="py-2 pr-2 font-medium text-[var(--text-primary)]">
-                          {node.status}
+                        <td className={`py-2 pr-2 font-medium ${guardTone}`}>
+                          <span className="inline-flex items-center gap-1">
+                            <GuardIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span>{desc.guardLabel}</span>
+                          </span>
                         </td>
                         <td className="py-2 text-right">
                           <button
@@ -1355,7 +1552,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                     <th scope="col" className="py-2 pr-2">Group</th>
                     <th scope="col" className="py-2 pr-2">ID</th>
                     <th scope="col" className="py-2 pr-2">Direction</th>
-                    <th scope="col" className="py-2 pr-2">Label / Tag</th>
+                    <th scope="col" className="py-2 pr-2">Label / Status</th>
                     <th scope="col" className="py-2 pr-2">Weight</th>
                     <th scope="col" className="py-2 text-right">Action</th>
                   </tr>
@@ -1417,213 +1614,6 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
           </div>
         </div>
       )}
-
-      {/* Object-Capability Delegation & Revocation Deck */}
-      <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-hairline)] pb-3">
-          <div className="flex items-center gap-2">
-            <KeyRound className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
-            <div>
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                Object-Capability Delegation and Revocation
-              </h2>
-              <p className="text-xs text-[var(--text-muted)]">
-                Attenuate narrower child capabilities (rights and shard scope can only shrink) or revoke an authority chain.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {ocapFeedback && (
-          <p
-            role={ocapFeedback.type === 'error' ? 'alert' : 'status'}
-            className={`text-xs font-semibold ${
-              ocapFeedback.type === 'error'
-                ? 'text-red-600 dark:text-red-400'
-                : 'text-emerald-700 dark:text-emerald-400'
-            }`}
-          >
-            {ocapFeedback.text}
-          </p>
-        )}
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <form onSubmit={handleAttenuateSubmit} noValidate className="lg:col-span-5 space-y-3">
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-              Attenuate Child Capability
-            </h3>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <label htmlFor="att-parent" className="block text-xs font-medium text-[var(--text-secondary)]">
-                  Parent Token
-                </label>
-                <select
-                  id="att-parent"
-                  value={attParentId}
-                  onChange={(e) => setAttParentId(e.target.value)}
-                  className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-xs text-[var(--text-primary)]"
-                >
-                  {capabilities.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.label} ({c.scope})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="att-scope" className="block text-xs font-medium text-[var(--text-secondary)]">
-                  Confined Scope
-                </label>
-                <select
-                  id="att-scope"
-                  value={attScope}
-                  onChange={(e) => setAttScope(e.target.value as CapabilityScope)}
-                  className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-xs text-[var(--text-primary)]"
-                >
-                  <option value="all">all</option>
-                  <option value="Shard-A">Shard-A</option>
-                  <option value="Shard-B">Shard-B</option>
-                  <option value="Shard-C">Shard-C</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="att-label" className="block text-xs font-medium text-[var(--text-secondary)]">
-                  New Token Name
-                </label>
-                <input
-                  id="att-label"
-                  type="text"
-                  value={attLabel}
-                  onChange={(e) => setAttLabel(e.target.value)}
-                  placeholder="e.g. Shard-B Batcher"
-                  className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-xs text-[var(--text-primary)]"
-                />
-              </div>
-              <div>
-                <label htmlFor="att-holder" className="block text-xs font-medium text-[var(--text-secondary)]">
-                  Holder Principal
-                </label>
-                <input
-                  id="att-holder"
-                  type="text"
-                  value={attHolder}
-                  onChange={(e) => setAttHolder(e.target.value)}
-                  placeholder="e.g. Sync Worker"
-                  className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-xs text-[var(--text-primary)]"
-                />
-              </div>
-            </div>
-
-            <fieldset>
-              <legend className="text-xs font-medium text-[var(--text-secondary)]">
-                Attenuated Rights
-              </legend>
-              <div className="mt-1.5 flex flex-wrap gap-3">
-                {ALL_RIGHTS.map((r) => (
-                  <label key={r} className="inline-flex items-center gap-1.5 text-xs text-[var(--text-primary)] cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={attRights.includes(r)}
-                      onChange={(e) => {
-                        setAttRights((prev) =>
-                          e.target.checked ? [...prev, r] : prev.filter((item) => item !== r)
-                        );
-                      }}
-                      className="h-3.5 w-3.5 accent-[var(--accent-primary)]"
-                    />
-                    <span className="font-mono">{r}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
-            <button
-              type="submit"
-              className="min-h-[40px] w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
-            >
-              Mint Attenuated Token
-            </button>
-          </form>
-
-          {/* Capability Registry */}
-          <div className="lg:col-span-7 overflow-x-auto">
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-              Capability Registry ({capabilities.length})
-            </h3>
-            <table className="mt-2 w-full border-collapse text-left text-xs">
-              <thead>
-                <tr className="border-b border-[var(--border-hairline)] text-[var(--text-muted)]">
-                  <th scope="col" className="py-2 pr-2">Token</th>
-                  <th scope="col" className="py-2 pr-2">Scope</th>
-                  <th scope="col" className="py-2 pr-2">Rights</th>
-                  <th scope="col" className="py-2 pr-2">Status</th>
-                  <th scope="col" className="py-2 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border-hairline)]">
-                {capabilities.map((cap) => {
-                  const active = isCapabilityActive(cap.id, capabilities);
-                  const isCurrent = cap.id === activeCapabilityId;
-                  return (
-                    <tr key={cap.id}>
-                      <td className="py-2 pr-2">
-                        <div className="font-semibold text-[var(--text-primary)]">
-                          {cap.label}
-                        </div>
-                        <div className="font-mono text-[11px] text-[var(--text-muted)]">
-                          {cap.id} · holder: {cap.holder}
-                        </div>
-                      </td>
-                      <td className="py-2 pr-2 font-mono text-[var(--text-primary)]">
-                        {cap.scope}
-                      </td>
-                      <td className="py-2 pr-2 font-mono text-[var(--text-secondary)]">
-                        {cap.rights.join(', ')}
-                      </td>
-                      <td
-                        className={`py-2 pr-2 font-medium ${
-                          active
-                            ? 'text-emerald-700 dark:text-emerald-400'
-                            : 'text-red-600 dark:text-red-400'
-                        }`}
-                      >
-                        <span className="inline-flex items-center gap-1">
-                          {active ? (
-                            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                          ) : (
-                            <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                          )}
-                          <span>{active ? 'Active' : 'Revoked'}</span>
-                        </span>
-                      </td>
-                      <td className="py-2 text-right whitespace-nowrap space-x-1.5">
-                        <button
-                          type="button"
-                          onClick={() => onUpdateCapabilities(capabilities, cap.id)}
-                          disabled={isCurrent}
-                          className="min-h-[32px] rounded border border-[var(--border-hairline)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                        >
-                          {isCurrent ? 'In Use' : 'Use'}
-                        </button>
-                        {cap.id !== 'cap-root' && active && (
-                          <button
-                            type="button"
-                            onClick={() => handleRevokeCap(cap.id)}
-                            aria-label={`Revoke capability ${cap.label}`}
-                            className="min-h-[32px] rounded border border-red-500/50 px-2.5 py-1 text-[11px] font-semibold text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
-                          >
-                            Revoke
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
     </section>
   );
 };
