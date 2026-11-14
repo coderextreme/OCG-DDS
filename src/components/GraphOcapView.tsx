@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
+  Edit3,
   Eye,
   KeyRound,
   Layers,
@@ -32,10 +33,14 @@ import {
 interface GraphOcapViewProps {
   nodes: GraphNode[];
   arcs: GraphArc[];
+  selectedNodeIds: string[];
+  selectedArcIds: string[];
   capabilities: CapabilityToken[];
   activeCapabilityId: string;
   healthyShards: Array<'Shard-A' | 'Shard-B' | 'Shard-C'>;
   outputChannelLabel: string;
+  onChangeSelectedNodes: React.Dispatch<React.SetStateAction<string[]>>;
+  onChangeSelectedArcs: React.Dispatch<React.SetStateAction<string[]>>;
   onUpdateGraph: (nodes: GraphNode[], arcs: GraphArc[]) => void;
   onUpdateCapabilities: (caps: CapabilityToken[], activeId: string) => void;
   onOpenCapabilities: () => void;
@@ -58,27 +63,30 @@ const SHARD_ZONES: Record<
   GraphNode['shard'],
   { x: number; width: number; centerX: number; tactileZone: string }
 > = {
-  'Shard-A': { x: 12, width: 170, centerX: 97, tactileZone: 'PT Zone A (Left)' },
-  'Shard-B': { x: 194, width: 172, centerX: 280, tactileZone: 'PT Zone B (Center)' },
-  'Shard-C': { x: 378, width: 170, centerX: 463, tactileZone: 'PT Zone C (Right)' },
+  'Shard-A': { x: 12, width: 190, centerX: 107, tactileZone: 'PT Zone A (Left)' },
+  'Shard-B': { x: 215, width: 190, centerX: 310, tactileZone: 'PT Zone B (Center)' },
+  'Shard-C': { x: 418, width: 190, centerX: 513, tactileZone: 'PT Zone C (Right)' },
 };
 
 export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
   nodes,
   arcs,
+  selectedNodeIds,
+  selectedArcIds,
   capabilities,
   activeCapabilityId,
   healthyShards,
   outputChannelLabel,
+  onChangeSelectedNodes,
+  onChangeSelectedArcs,
   onUpdateGraph,
   onUpdateCapabilities,
   onOpenCapabilities,
   onAnnounce,
 }) => {
-  // Selection Groups
-  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>(['N1', 'N2']);
-  const [selectedArcIds, setSelectedArcIds] = useState<string[]>(['A1']);
   const [focusedNodeId, setFocusedNodeId] = useState<string>(nodes[0]?.id ?? 'N1');
+  const editNodeLabelRef = useRef<HTMLInputElement>(null);
+  const editArcLabelRef = useRef<HTMLInputElement>(null);
 
   // Query state
   const [query, setQuery] = useState<GraphQuery>({
@@ -113,12 +121,66 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
   const [groupArcWeight, setGroupArcWeight] = useState('15');
   const [groupTagPatch, setGroupTagPatch] = useState('');
 
+  // Single Node Edit form
+  const [editNodeId, setEditNodeId] = useState<string>(nodes[0]?.id ?? '');
+  const [editNodeLabel, setEditNodeLabel] = useState<string>(nodes[0]?.label ?? '');
+  const [editNodeShard, setEditNodeShard] = useState<GraphNode['shard']>(
+    nodes[0]?.shard ?? 'Shard-A'
+  );
+  const [editNodeStatus, setEditNodeStatus] = useState<GraphEntityStatus>(
+    nodes[0]?.status ?? 'active'
+  );
+  const [editNodeGroup, setEditNodeGroup] = useState<string>(nodes[0]?.groupTag ?? 'core');
+
+  // Single Arc Edit form
+  const [editArcId, setEditArcId] = useState<string>(arcs[0]?.id ?? '');
+  const [editArcSource, setEditArcSource] = useState<string>(arcs[0]?.source ?? 'N1');
+  const [editArcTarget, setEditArcTarget] = useState<string>(arcs[0]?.target ?? 'N2');
+  const [editArcLabel, setEditArcLabel] = useState<string>(arcs[0]?.label ?? '');
+  const [editArcWeight, setEditArcWeight] = useState<string>(String(arcs[0]?.weight ?? 10));
+  const [editArcStatus, setEditArcStatus] = useState<GraphEntityStatus>(
+    arcs[0]?.status ?? 'active'
+  );
+  const [editArcGroup, setEditArcGroup] = useState<string>(arcs[0]?.groupTag ?? 'data');
+
   // Batch Queue
   const [batchQueue, setBatchQueue] = useState<BatchOperation[]>([]);
   const [opFeedback, setOpFeedback] = useState<{
     type: 'error' | 'success';
     text: string;
   } | null>(null);
+
+  const loadNodeIntoEditor = (node: GraphNode) => {
+    setEditNodeId(node.id);
+    setEditNodeLabel(node.label);
+    setEditNodeShard(node.shard);
+    setEditNodeStatus(node.status);
+    setEditNodeGroup(node.groupTag);
+  };
+
+  const loadArcIntoEditor = (arc: GraphArc) => {
+    setEditArcId(arc.id);
+    setEditArcSource(arc.source);
+    setEditArcTarget(arc.target);
+    setEditArcLabel(arc.label);
+    setEditArcWeight(String(arc.weight));
+    setEditArcStatus(arc.status);
+    setEditArcGroup(arc.groupTag);
+  };
+
+  useEffect(() => {
+    const match = nodes.find((n) => n.id === editNodeId) ?? nodes[0];
+    if (match && match.id !== editNodeId) {
+      loadNodeIntoEditor(match);
+    }
+  }, [nodes, editNodeId]);
+
+  useEffect(() => {
+    const match = arcs.find((a) => a.id === editArcId) ?? arcs[0];
+    if (match && match.id !== editArcId) {
+      loadArcIntoEditor(match);
+    }
+  }, [arcs, editArcId]);
 
   const activeCap = useMemo(
     () => capabilities.find((c) => c.id === activeCapabilityId) ?? capabilities[0],
@@ -164,11 +226,11 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
           shardNodes.length === 1
             ? 0
             : idx % 2 === 0
-              ? -32
-              : 32;
+              ? -44
+              : 44;
         const row = shardNodes.length > 2 ? Math.floor(idx / 2) : idx;
         const totalRows = shardNodes.length > 2 ? Math.ceil(shardNodes.length / 2) : shardNodes.length;
-        const spacing = totalRows <= 1 ? 0 : Math.min(110, 175 / Math.max(1, totalRows - 1));
+        const spacing = totalRows <= 1 ? 0 : Math.min(108, 175 / Math.max(1, totalRows - 1));
         const startY = totalRows <= 1 ? 165 : 98;
         coords[n.id] = {
           x: zone.centerX + colOffset,
@@ -400,8 +462,81 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
         `Deleted ${selectedNodeIds.length} node(s) and ${selectedArcIds.length} arc(s) from the distributed graph.`
       )
     ) {
-      setSelectedNodeIds([]);
-      setSelectedArcIds([]);
+      onChangeSelectedNodes([]);
+      onChangeSelectedArcs([]);
+    }
+  };
+
+  const handleSaveSingleNodeEdit = (queueOnly: boolean) => {
+    if (!editNodeId) {
+      setOpFeedback({ type: 'error', text: 'Select a node to edit.' });
+      return;
+    }
+    const cleanLabel = editNodeLabel.trim();
+    if (!cleanLabel) {
+      setOpFeedback({ type: 'error', text: 'Node label cannot be empty.' });
+      return;
+    }
+    const op: BatchOperation = {
+      id: `op-edit-n-${Date.now()}`,
+      kind: 'update-nodes',
+      nodeIds: [editNodeId],
+      patch: {
+        label: cleanLabel,
+        shard: editNodeShard,
+        status: editNodeStatus,
+        groupTag: editNodeGroup.trim() || 'general',
+      },
+    };
+    if (queueOnly) {
+      setBatchQueue((prev) => [...prev, op]);
+      setOpFeedback({ type: 'success', text: `Queued edit for node ${editNodeId}.` });
+      onAnnounce('info', `Queued edit for node ${editNodeId}.`);
+    } else {
+      runImmediateOps(
+        [op],
+        `Updated node ${editNodeId} (${cleanLabel}) on ${editNodeShard} (${editNodeStatus}).`
+      );
+    }
+  };
+
+  const handleSaveSingleArcEdit = (queueOnly: boolean) => {
+    if (!editArcId) {
+      setOpFeedback({ type: 'error', text: 'Select an arc to edit.' });
+      return;
+    }
+    const cleanLabel = editArcLabel.trim();
+    const weightNum = Number(editArcWeight);
+    if (!cleanLabel) {
+      setOpFeedback({ type: 'error', text: 'Arc label cannot be empty.' });
+      return;
+    }
+    if (!Number.isFinite(weightNum) || weightNum < 0) {
+      setOpFeedback({ type: 'error', text: 'Arc weight must be a non-negative number.' });
+      return;
+    }
+    const op: BatchOperation = {
+      id: `op-edit-a-${Date.now()}`,
+      kind: 'update-arcs',
+      arcIds: [editArcId],
+      patch: {
+        source: editArcSource,
+        target: editArcTarget,
+        label: cleanLabel,
+        weight: weightNum,
+        status: editArcStatus,
+        groupTag: editArcGroup.trim() || 'data',
+      },
+    };
+    if (queueOnly) {
+      setBatchQueue((prev) => [...prev, op]);
+      setOpFeedback({ type: 'success', text: `Queued edit for arc ${editArcId}.` });
+      onAnnounce('info', `Queued edit for arc ${editArcId}.`);
+    } else {
+      runImmediateOps(
+        [op],
+        `Updated arc ${editArcId} (${editArcSource} -> ${editArcTarget}, w=${weightNum}, ${editArcStatus}).`
+      );
     }
   };
 
@@ -423,8 +558,8 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
     setBatchQueue([]);
     const existingNodeIds = new Set(res.nodes.map((n) => n.id));
     const existingArcIds = new Set(res.arcs.map((a) => a.id));
-    setSelectedNodeIds((prev) => prev.filter((id) => existingNodeIds.has(id)));
-    setSelectedArcIds((prev) => prev.filter((id) => existingArcIds.has(id)));
+    onChangeSelectedNodes((prev) => prev.filter((id) => existingNodeIds.has(id)));
+    onChangeSelectedArcs((prev) => prev.filter((id) => existingArcIds.has(id)));
     setOpFeedback({ type: 'success', text: res.summary });
     onAnnounce('success', res.summary);
   };
@@ -608,8 +743,8 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 className="overflow-x-auto rounded-lg bg-[var(--bg-subtle)] p-3"
               >
                 <svg
-                  viewBox="0 0 560 310"
-                  className="mx-auto h-72 w-full min-w-[500px]"
+                  viewBox="0 0 620 330"
+                  className="mx-auto h-72 w-full min-w-[540px]"
                   role="img"
                   aria-label={`Distributed graph across 3 shards with ${nodes.length} nodes and ${arcs.length} arcs`}
                 >
@@ -640,7 +775,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                           x={zone.x}
                           y={12}
                           width={zone.width}
-                          height={286}
+                          height={306}
                           rx={10}
                           fill="var(--bg-surface)"
                           fillOpacity={isShardInCap ? 0.92 : 0.45}
@@ -793,7 +928,9 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                           textAnchor="middle"
                           className="fill-[var(--text-primary)] text-[10px] font-semibold"
                         >
-                          {node.label}
+                          {node.label.length > 15
+                            ? `${node.label.slice(0, 14)}…`
+                            : node.label}
                         </text>
                         <text
                           x={pos.x}
@@ -1250,6 +1387,293 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
         </div>
       </div>
 
+      {/* Single-Entity Accessible Edit Node & Edit Directed Arc Forms */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div
+          id="edit-node-card"
+          className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 space-y-4"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">
+              Edit Single Node
+            </h2>
+            <span className="font-mono text-xs text-[var(--text-muted)]">
+              OCap-enforced update
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label
+                htmlFor="edit-node-id"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                Node to Edit
+              </label>
+              <select
+                id="edit-node-id"
+                value={editNodeId}
+                onChange={(e) => {
+                  const chosen = nodes.find((n) => n.id === e.target.value);
+                  if (chosen) loadNodeIntoEditor(chosen);
+                }}
+                className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 font-mono text-sm text-[var(--text-primary)]"
+              >
+                {nodes.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.id} · {n.label} ({n.shard})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="edit-node-label"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                Updated Label
+              </label>
+              <input
+                ref={editNodeLabelRef}
+                id="edit-node-label"
+                type="text"
+                value={editNodeLabel}
+                onChange={(e) => setEditNodeLabel(e.target.value)}
+                className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="edit-node-shard"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                Shard Zone
+              </label>
+              <select
+                id="edit-node-shard"
+                value={editNodeShard}
+                onChange={(e) => setEditNodeShard(e.target.value as GraphNode['shard'])}
+                className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
+              >
+                <option value="Shard-A">Shard-A (PT Zone A)</option>
+                <option value="Shard-B">Shard-B (PT Zone B)</option>
+                <option value="Shard-C">Shard-C (PT Zone C)</option>
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="edit-node-status"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                Status
+              </label>
+              <select
+                id="edit-node-status"
+                value={editNodeStatus}
+                onChange={(e) => setEditNodeStatus(e.target.value as GraphEntityStatus)}
+                className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
+              >
+                <option value="active">active</option>
+                <option value="maintenance">maintenance</option>
+                <option value="isolated">isolated</option>
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label
+                htmlFor="edit-node-group"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                Group Tag
+              </label>
+              <input
+                id="edit-node-group"
+                type="text"
+                value={editNodeGroup}
+                onChange={(e) => setEditNodeGroup(e.target.value)}
+                className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 font-mono text-sm text-[var(--text-primary)]"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => handleSaveSingleNodeEdit(false)}
+              className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] cursor-pointer"
+            >
+              <Edit3 className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Save Node Changes</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSaveSingleNodeEdit(true)}
+              className="min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
+            >
+              Queue Node Edit
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="edit-arc-card"
+          className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 space-y-4"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">
+              Edit Directed Arc
+            </h2>
+            <span className="font-mono text-xs text-[var(--text-muted)]">
+              Re-wire endpoints &amp; weight
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label
+                htmlFor="edit-arc-id"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                Arc to Edit
+              </label>
+              <select
+                id="edit-arc-id"
+                value={editArcId}
+                onChange={(e) => {
+                  const chosen = arcs.find((a) => a.id === e.target.value);
+                  if (chosen) loadArcIntoEditor(chosen);
+                }}
+                className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 font-mono text-sm text-[var(--text-primary)]"
+              >
+                {arcs.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.id} ({a.source} -&gt; {a.target})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="edit-arc-source"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                Source Node
+              </label>
+              <select
+                id="edit-arc-source"
+                value={editArcSource}
+                onChange={(e) => setEditArcSource(e.target.value)}
+                className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 font-mono text-sm text-[var(--text-primary)]"
+              >
+                {nodes.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.id} ({n.label})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="edit-arc-target"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                Target Node
+              </label>
+              <select
+                id="edit-arc-target"
+                value={editArcTarget}
+                onChange={(e) => setEditArcTarget(e.target.value)}
+                className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 font-mono text-sm text-[var(--text-primary)]"
+              >
+                {nodes.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.id} ({n.label})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="edit-arc-label"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                Updated Label
+              </label>
+              <input
+                ref={editArcLabelRef}
+                id="edit-arc-label"
+                type="text"
+                value={editArcLabel}
+                onChange={(e) => setEditArcLabel(e.target.value)}
+                className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="edit-arc-weight"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                Weight
+              </label>
+              <input
+                id="edit-arc-weight"
+                type="number"
+                min={0}
+                value={editArcWeight}
+                onChange={(e) => setEditArcWeight(e.target.value)}
+                className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 font-mono text-sm text-[var(--text-primary)]"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="edit-arc-status"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                Status
+              </label>
+              <select
+                id="edit-arc-status"
+                value={editArcStatus}
+                onChange={(e) => setEditArcStatus(e.target.value as GraphEntityStatus)}
+                className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
+              >
+                <option value="active">active</option>
+                <option value="maintenance">maintenance</option>
+                <option value="isolated">isolated</option>
+              </select>
+            </div>
+            <div className="sm:col-span-3">
+              <label
+                htmlFor="edit-arc-group"
+                className="block text-xs font-medium text-[var(--text-secondary)]"
+              >
+                Group Tag
+              </label>
+              <input
+                id="edit-arc-group"
+                type="text"
+                value={editArcGroup}
+                onChange={(e) => setEditArcGroup(e.target.value)}
+                className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 font-mono text-sm text-[var(--text-primary)]"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => handleSaveSingleArcEdit(false)}
+              className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] cursor-pointer"
+            >
+              <Edit3 className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Save Arc Changes</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSaveSingleArcEdit(true)}
+              className="min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
+            >
+              Queue Arc Edit
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Query & Group Selection Controls */}
       <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1393,7 +1817,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
             type="button"
             onClick={() => {
               const ids = queryResult.nodes.map((n) => n.id);
-              setSelectedNodeIds(ids);
+              onChangeSelectedNodes(ids);
               onAnnounce('info', `Selected ${ids.length} matched node(s) as active group.`);
             }}
             className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
@@ -1404,7 +1828,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
             type="button"
             onClick={() => {
               const ids = queryResult.arcs.map((a) => a.id);
-              setSelectedArcIds(ids);
+              onChangeSelectedArcs(ids);
               onAnnounce('info', `Selected ${ids.length} matched arc(s) as active group.`);
             }}
             className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
@@ -1420,7 +1844,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                     selectedNodeSet.has(a.source) || selectedNodeSet.has(a.target)
                 )
                 .map((a) => a.id);
-              setSelectedArcIds(incident);
+              onChangeSelectedArcs(incident);
               onAnnounce(
                 'info',
                 `Selected ${incident.length} incident arc(s) connected to chosen nodes.`
@@ -1433,8 +1857,8 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
           <button
             type="button"
             onClick={() => {
-              setSelectedNodeIds([]);
-              setSelectedArcIds([]);
+              onChangeSelectedNodes([]);
+              onChangeSelectedArcs([]);
               onAnnounce('info', 'Cleared node and arc group selection.');
             }}
             className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
@@ -1493,7 +1917,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                             checked={checked}
                             aria-label={`Select node ${node.id} ${node.label}`}
                             onChange={(e) => {
-                              setSelectedNodeIds((prev) =>
+                              onChangeSelectedNodes((prev) =>
                                 e.target.checked
                                   ? [...prev, node.id]
                                   : prev.filter((id) => id !== node.id)
@@ -1517,7 +1941,23 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                             <span>{desc.guardLabel}</span>
                           </span>
                         </td>
-                        <td className="py-2 text-right">
+                        <td className="py-2 text-right whitespace-nowrap space-x-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              loadNodeIntoEditor(node);
+                              onAnnounce(
+                                'info',
+                                `Loaded node ${node.id} (${node.label}) into Single Node editor.`
+                              );
+                              setTimeout(() => editNodeLabelRef.current?.focus(), 0);
+                            }}
+                            aria-label={`Edit node ${node.id}`}
+                            className="inline-flex min-h-[32px] items-center gap-1 rounded border border-[var(--border-hairline)] px-2 py-1 text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
+                          >
+                            <Edit3 className="h-3 w-3" aria-hidden="true" />
+                            <span>Edit</span>
+                          </button>
                           <button
                             type="button"
                             onClick={() =>
@@ -1568,7 +2008,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                             checked={checked}
                             aria-label={`Select arc ${arc.id} ${arc.label}`}
                             onChange={(e) => {
-                              setSelectedArcIds((prev) =>
+                              onChangeSelectedArcs((prev) =>
                                 e.target.checked
                                   ? [...prev, arc.id]
                                   : prev.filter((id) => id !== arc.id)
@@ -1589,7 +2029,23 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                         <td className="py-2 pr-2 font-mono tabular-nums text-[var(--text-primary)]">
                           {arc.weight}
                         </td>
-                        <td className="py-2 text-right">
+                        <td className="py-2 text-right whitespace-nowrap space-x-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              loadArcIntoEditor(arc);
+                              onAnnounce(
+                                'info',
+                                `Loaded arc ${arc.id} (${arc.source} -> ${arc.target}) into Directed Arc editor.`
+                              );
+                              setTimeout(() => editArcLabelRef.current?.focus(), 0);
+                            }}
+                            aria-label={`Edit arc ${arc.id}`}
+                            className="inline-flex min-h-[32px] items-center gap-1 rounded border border-[var(--border-hairline)] px-2 py-1 text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
+                          >
+                            <Edit3 className="h-3 w-3" aria-hidden="true" />
+                            <span>Edit</span>
+                          </button>
                           <button
                             type="button"
                             onClick={() =>

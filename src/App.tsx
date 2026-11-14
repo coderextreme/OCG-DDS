@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { graphToMerkleRecords } from './core/accessibilityOutput';
+import { executeAccessibleCommand } from './core/accessibleEditing';
 import { createSeedCrdtReplicas, type CrdtReplica } from './core/crdt';
 import {
   createSeedRingState,
@@ -17,6 +18,7 @@ import {
   type QuorumConfig,
   type QuorumNode,
 } from './core/quorum';
+import { AccessibleEditConsole } from './components/AccessibleEditConsole';
 import { CapabilitiesView } from './components/CapabilitiesView';
 import { GraphOcapView } from './components/GraphOcapView';
 import { HashRingView } from './components/HashRingView';
@@ -50,6 +52,7 @@ export default function App() {
   const [reducedMotion, setReducedMotion] = useState<boolean>(false);
   const [outputChannel, setOutputChannel] = useState<AccessibleOutputChannel>('standard');
   const [keyboardGuideOpen, setKeyboardGuideOpen] = useState<boolean>(false);
+  const [editConsoleFocusSignal, setEditConsoleFocusSignal] = useState<number>(0);
   const lastFocusedRef = useRef<HTMLElement | null>(null);
 
   // Unified Distributed Graph & Object-Capability Security state
@@ -59,6 +62,8 @@ export default function App() {
   const [graphArcs, setGraphArcs] = useState<GraphArc[]>(
     () => createSeedOcapGraphState().arcs
   );
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>(['N1', 'N2']);
+  const [selectedArcIds, setSelectedArcIds] = useState<string[]>(['A1']);
   const [capabilities, setCapabilities] = useState<CapabilityToken[]>(
     () => createSeedOcapGraphState().capabilities
   );
@@ -195,6 +200,10 @@ export default function App() {
           e.preventDefault();
           setActiveModule('capabilities');
           announce('capabilities', 'info', 'Switched to Capabilities Registry.');
+        } else if (e.key.toLowerCase() === 'e') {
+          e.preventDefault();
+          setEditConsoleFocusSignal((n) => n + 1);
+          announce(activeModule, 'info', 'Focused Multi-Modal Edit Console.');
         }
       }
     };
@@ -219,6 +228,8 @@ export default function App() {
     const seedGraph = createSeedOcapGraphState();
     setGraphNodes(seedGraph.nodes);
     setGraphArcs(seedGraph.arcs);
+    setSelectedNodeIds(['N1', 'N2']);
+    setSelectedArcIds(['A1']);
     setCapabilities(seedGraph.capabilities);
     setActiveCapabilityId(seedGraph.activeCapabilityId);
     setMerkleReplicaB(graphToMerkleRecords(seedGraph.nodes, seedGraph.arcs));
@@ -240,6 +251,50 @@ export default function App() {
       'info',
       'Reset distributed graph, replicas, shards, and capabilities to deterministic seed state.'
     );
+  };
+
+  const handleExecuteAccessibleCommand = (rawCommand: string) => {
+    const outcome = executeAccessibleCommand(rawCommand, {
+      graphNodes,
+      graphArcs,
+      selectedNodeIds,
+      selectedArcIds,
+      capabilities,
+      activeCapabilityId,
+      ringNodes,
+      ringEntries,
+      replicationFactor,
+      crdtReplicas,
+      merkleReplicaB,
+      quorumConfig,
+      quorumNodes,
+      quorumVersion,
+    });
+
+    if (outcome.ok) {
+      const next = outcome.nextState;
+      setGraphNodes(next.graphNodes);
+      setGraphArcs(next.graphArcs);
+      setSelectedNodeIds(next.selectedNodeIds);
+      setSelectedArcIds(next.selectedArcIds);
+      setCapabilities(next.capabilities);
+      setActiveCapabilityId(next.activeCapabilityId);
+      setRingNodes(next.ringNodes);
+      setRingEntries(next.ringEntries);
+      setReplicationFactor(next.replicationFactor);
+      setCrdtReplicas(next.crdtReplicas);
+      setMerkleReplicaB(next.merkleReplicaB);
+      setQuorumConfig(next.quorumConfig);
+      setQuorumNodes(next.quorumNodes);
+      setQuorumVersion(next.quorumVersion);
+    }
+
+    announce(activeModule, outcome.severity, outcome.summary);
+    return {
+      ok: outcome.ok,
+      summary: outcome.summary,
+      decodedCommand: outcome.decodedCommand,
+    };
   };
 
   const handleChangeOutputChannel = (channel: AccessibleOutputChannel) => {
@@ -294,18 +349,31 @@ export default function App() {
       <main
         id="main-content"
         tabIndex={-1}
-        className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-6"
+        className="mx-auto w-full max-w-[1440px] flex-1 space-y-6 px-4 py-6 sm:px-6"
       >
+        <AccessibleEditConsole
+          outputChannel={outputChannel}
+          nodeIds={graphNodes.map((n) => n.id)}
+          arcIds={graphArcs.map((a) => a.id)}
+          capabilityIds={capabilities.map((c) => c.id)}
+          focusSignal={editConsoleFocusSignal}
+          onExecuteCommand={handleExecuteAccessibleCommand}
+        />
+
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-12 xl:items-start">
           <div className="xl:col-span-9 min-w-0">
             {activeModule === 'graph' && (
               <GraphOcapView
                 nodes={graphNodes}
                 arcs={graphArcs}
+                selectedNodeIds={selectedNodeIds}
+                selectedArcIds={selectedArcIds}
                 capabilities={capabilities}
                 activeCapabilityId={activeCapabilityId}
                 healthyShards={healthyShards}
                 outputChannelLabel={CHANNEL_LABELS[outputChannel]}
+                onChangeSelectedNodes={setSelectedNodeIds}
+                onChangeSelectedArcs={setSelectedArcIds}
                 onUpdateGraph={(nextNodes, nextArcs) => {
                   setGraphNodes(nextNodes);
                   setGraphArcs(nextArcs);

@@ -66,7 +66,9 @@ export type BatchOperation =
       id: string;
       kind: 'update-arcs';
       arcIds: string[];
-      patch: Partial<Pick<GraphArc, 'label' | 'weight' | 'status' | 'groupTag'>>;
+      patch: Partial<
+        Pick<GraphArc, 'label' | 'weight' | 'status' | 'groupTag' | 'source' | 'target'>
+      >;
     }
   | {
       id: string;
@@ -230,6 +232,36 @@ export function revokeCapability(
   return {
     ok: true,
     caps: allCaps.map((c) => (c.id === targetCapId ? { ...c, revoked: true } : c)),
+  };
+}
+
+export function updateCapabilityMetadata(
+  allCaps: CapabilityToken[],
+  targetCapId: string,
+  actingCapId: string,
+  patch: { label?: string; holder?: string }
+): { ok: true; caps: CapabilityToken[] } | { ok: false; error: string } {
+  const target = allCaps.find((c) => c.id === targetCapId);
+  if (!target) {
+    return { ok: false, error: `Capability "${targetCapId}" not found.` };
+  }
+  if (!isCapabilityActive(target.id, allCaps)) {
+    return { ok: false, error: `Cannot edit revoked capability "${target.label}".` };
+  }
+  const auth = authorizeCapability(actingCapId, allCaps, 'delegate', ['Shard-A']);
+  if (!auth.allowed) {
+    return { ok: false, error: auth.reason };
+  }
+  const nextLabel = patch.label !== undefined ? patch.label.trim() : target.label;
+  const nextHolder = patch.holder !== undefined ? patch.holder.trim() : target.holder;
+  if (!nextLabel || !nextHolder) {
+    return { ok: false, error: 'Capability label and holder cannot be empty.' };
+  }
+  return {
+    ok: true,
+    caps: allCaps.map((c) =>
+      c.id === targetCapId ? { ...c, label: nextLabel, holder: nextHolder } : c
+    ),
   };
 }
 
@@ -464,7 +496,35 @@ export function executeGraphBatch(
       arcs = arcs.filter((a) => !idSet.has(a.source) && !idSet.has(a.target));
     } else if (op.kind === 'update-arcs') {
       const targets = arcs.filter((a) => op.arcIds.includes(a.id));
+      if (op.patch.source && !nodes.some((n) => n.id === op.patch.source)) {
+        return {
+          ok: false,
+          nodes: initialNodes,
+          arcs: initialArcs,
+          appliedCount: 0,
+          summary: 'Batch rolled back.',
+          error: `Arc source "${op.patch.source}" does not exist.`,
+        };
+      }
+      if (op.patch.target && !nodes.some((n) => n.id === op.patch.target)) {
+        return {
+          ok: false,
+          nodes: initialNodes,
+          arcs: initialArcs,
+          appliedCount: 0,
+          summary: 'Batch rolled back.',
+          error: `Arc target "${op.patch.target}" does not exist.`,
+        };
+      }
       const shards = targets.flatMap((a) => getArcShards(a, nodes));
+      if (op.patch.source) {
+        const sNode = nodes.find((n) => n.id === op.patch.source);
+        if (sNode) shards.push(sNode.shard);
+      }
+      if (op.patch.target) {
+        const tNode = nodes.find((n) => n.id === op.patch.target);
+        if (tNode) shards.push(tNode.shard);
+      }
       const auth = authorizeCapability(actingCapId, allCaps, 'update', shards);
       if (!auth.allowed) {
         return {

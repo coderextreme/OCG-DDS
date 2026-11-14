@@ -31,6 +31,30 @@ const SHORTCUT_ROWS = [
       'Switch directly between Graph Workspace, Sync & Quorum, Hash Sharding, and Capabilities.',
   },
   {
+    keys: 'Alt + E',
+    scope: 'Global',
+    action:
+      'Open and focus the Multi-Modal Edit Console to edit nodes, arcs, data structures, or capabilities via text or Unicode Braille.',
+  },
+  {
+    keys: 'F D S / J K L',
+    scope: '6-Dot Braille Editor',
+    action:
+      'Toggle Braille Dots 1-3 (left hand) and Dots 4-6 (right hand), Space commits cell, Backspace deletes cell, Enter executes command.',
+  },
+  {
+    keys: 'ASL / PT Builder',
+    scope: 'Edit Console',
+    action:
+      'Compose Topic-Comment (NODE / ARC / CAPABILITY / QUORUM) edits mapped to Protactile Spatial Zones A, B, and C with optional tactile pulse.',
+  },
+  {
+    keys: 'Edit & - / + Steppers',
+    scope: 'Tables & Quorum',
+    action:
+      'Every node, arc, key, register, and active capability row includes a keyboard Edit button; Quorum W/R sliders include discrete - / + steppers.',
+  },
+  {
     keys: 'Output Channel',
     scope: 'Toolbar / Announcer',
     action:

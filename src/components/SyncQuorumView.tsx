@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
   Download,
+  Edit3,
   GitCompare,
   GitMerge,
+  Minus,
   Plus,
   RefreshCw,
   Trash2,
@@ -138,6 +140,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
   const [orSetItemInput, setOrSetItemInput] = useState('');
   const [lwwKeyInput, setLwwKeyInput] = useState('');
   const [lwwValueInput, setLwwValueInput] = useState('');
+  const lwwValRef = useRef<HTMLInputElement>(null);
   const [crdtError, setCrdtError] = useState<string | null>(null);
   const [opCounter, setOpCounter] = useState(100);
 
@@ -920,6 +923,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                     Value
                   </label>
                   <input
+                    ref={lwwValRef}
                     id="crdt-lww-val"
                     type="text"
                     value={lwwValueInput}
@@ -1038,11 +1042,31 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                       {lwwEntries.map((entry) => (
                         <div key={entry.key} className="flex items-center justify-between gap-2">
                           <dt className="font-mono text-[var(--text-secondary)]">{entry.key}</dt>
-                          <dd className="font-mono font-semibold text-[var(--text-primary)]">
-                            {entry.value}{' '}
-                            <span className="font-normal text-[var(--text-muted)]">
-                              (t={entry.timestamp})
+                          <dd className="flex items-center gap-2 font-mono font-semibold text-[var(--text-primary)]">
+                            <span>
+                              {entry.value}{' '}
+                              <span className="font-normal text-[var(--text-muted)]">
+                                (t={entry.timestamp})
+                              </span>
                             </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTargetReplicaId(replica.id);
+                                setLwwKeyInput(entry.key);
+                                setLwwValueInput(entry.value);
+                                onAnnounce(
+                                  'info',
+                                  `Loaded LWW register "${entry.key}" on ${replica.id} for editing.`
+                                );
+                                setTimeout(() => lwwValRef.current?.focus(), 0);
+                              }}
+                              aria-label={`Edit LWW register ${entry.key} on ${replica.id}`}
+                              className="inline-flex min-h-[26px] items-center gap-1 rounded border border-[var(--border-hairline)] px-1.5 py-0.5 font-sans text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
+                            >
+                              <Edit3 className="h-3 w-3" aria-hidden="true" />
+                              <span>Edit</span>
+                            </button>
                           </dd>
                         </div>
                       ))}
@@ -1073,9 +1097,31 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                 <label htmlFor="slider-w" className="text-[var(--text-secondary)]">
                   Write Quorum (W)
                 </label>
-                <span className="font-mono font-semibold tabular-nums text-[var(--text-primary)]">
-                  W = {quorumConfig.w}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateW(Math.max(1, quorumConfig.w - 1))}
+                    disabled={quorumConfig.w <= 1}
+                    aria-label="Decrease Write Quorum (W)"
+                    className="inline-flex min-h-[28px] min-w-[28px] items-center justify-center rounded border border-[var(--border-hairline)] bg-[var(--bg-subtle)] text-[var(--text-primary)] disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    <Minus className="h-3 w-3" aria-hidden="true" />
+                  </button>
+                  <span className="min-w-[44px] text-center font-mono font-semibold tabular-nums text-[var(--text-primary)]">
+                    W = {quorumConfig.w}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleUpdateW(Math.min(quorumConfig.n, quorumConfig.w + 1))
+                    }
+                    disabled={quorumConfig.w >= quorumConfig.n}
+                    aria-label="Increase Write Quorum (W)"
+                    className="inline-flex min-h-[28px] min-w-[28px] items-center justify-center rounded border border-[var(--border-hairline)] bg-[var(--bg-subtle)] text-[var(--text-primary)] disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    <Plus className="h-3 w-3" aria-hidden="true" />
+                  </button>
+                </div>
               </div>
               <input
                 id="slider-w"
@@ -1093,9 +1139,31 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                 <label htmlFor="slider-r" className="text-[var(--text-secondary)]">
                   Read Quorum (R)
                 </label>
-                <span className="font-mono font-semibold tabular-nums text-[var(--text-primary)]">
-                  R = {quorumConfig.r}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateR(Math.max(1, quorumConfig.r - 1))}
+                    disabled={quorumConfig.r <= 1}
+                    aria-label="Decrease Read Quorum (R)"
+                    className="inline-flex min-h-[28px] min-w-[28px] items-center justify-center rounded border border-[var(--border-hairline)] bg-[var(--bg-subtle)] text-[var(--text-primary)] disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    <Minus className="h-3 w-3" aria-hidden="true" />
+                  </button>
+                  <span className="min-w-[44px] text-center font-mono font-semibold tabular-nums text-[var(--text-primary)]">
+                    R = {quorumConfig.r}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleUpdateR(Math.min(quorumConfig.n, quorumConfig.r + 1))
+                    }
+                    disabled={quorumConfig.r >= quorumConfig.n}
+                    aria-label="Increase Read Quorum (R)"
+                    className="inline-flex min-h-[28px] min-w-[28px] items-center justify-center rounded border border-[var(--border-hairline)] bg-[var(--bg-subtle)] text-[var(--text-primary)] disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    <Plus className="h-3 w-3" aria-hidden="true" />
+                  </button>
+                </div>
               </div>
               <input
                 id="slider-r"

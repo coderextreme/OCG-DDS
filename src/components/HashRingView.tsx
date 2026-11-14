@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { CheckCircle2, Plus, Power, PowerOff, Search, Trash2, XCircle } from 'lucide-react';
+import React, { useMemo, useRef, useState } from 'react';
+import { CheckCircle2, Edit3, Plus, Power, PowerOff, Search, Trash2, XCircle } from 'lucide-react';
 import {
   buildVirtualRing,
   computeRingMetrics,
@@ -51,6 +51,7 @@ export const HashRingView: React.FC<HashRingViewProps> = ({
   );
   const [newNodeLabel, setNewNodeLabel] = useState('');
   const [nodeError, setNodeError] = useState<string | null>(null);
+  const valInputRef = useRef<HTMLInputElement>(null);
 
   const sortedVnodes = useMemo(() => buildVirtualRing(nodes), [nodes]);
 
@@ -485,6 +486,7 @@ export const HashRingView: React.FC<HashRingViewProps> = ({
                   Payload Value
                 </label>
                 <input
+                  ref={valInputRef}
                   id="ring-val-input"
                   type="text"
                   value={valueInput}
@@ -699,7 +701,26 @@ export const HashRingView: React.FC<HashRingViewProps> = ({
                       <td className="py-2.5 pr-4 font-mono text-xs text-[var(--text-secondary)]">
                         {p.replicaNodeIds.length > 0 ? p.replicaNodeIds.join(', ') : 'None'}
                       </td>
-                      <td className="py-2.5 text-right">
+                      <td className="py-2.5 text-right whitespace-nowrap space-x-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedKeyName(p.entry.key);
+                            setKeyInput(p.entry.key);
+                            setValueInput(p.entry.value);
+                            setFormError(null);
+                            onAnnounce(
+                              'info',
+                              `Loaded ring key "${p.entry.key}" into Put Key editor.`
+                            );
+                            setTimeout(() => valInputRef.current?.focus(), 0);
+                          }}
+                          aria-label={`Edit key ${p.entry.key}`}
+                          className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-[var(--border-hairline)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
+                        >
+                          <Edit3 className="h-3.5 w-3.5" aria-hidden="true" />
+                          <span>Edit</span>
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleDeleteKey(p.entry.key)}
