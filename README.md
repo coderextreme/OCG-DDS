@@ -6,7 +6,7 @@ If someone wants to help lead this project, contact me at yottzumm@gmail.com
 
 Translations of this README.md are welcome, or I could use AI/LLM.
 
-## Setup
+# Setup
 
 Get Node.js with NPM, Git or GitHub Desktop (no instructions, apologies).
 
