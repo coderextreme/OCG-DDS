@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Check, Copy, MoveHorizontal, MoveVertical } from 'lucide-react';
+import { translateUi, type SupportedUiLocale } from '../core/i18n';
 import type {
   SignContactKind,
   SignHandshapeKind,
@@ -13,6 +14,7 @@ import type {
 interface SignWritingLaneProps {
   sequence: SignWritingSequence;
   direction: SignWritingDirection;
+  uiLocale?: SupportedUiLocale;
   onToggleDirection: () => void;
 }
 
@@ -290,6 +292,7 @@ const SignWritingBoxCard: React.FC<{ box: SignWritingBox; stepNumber: number }> 
 export const SignWritingLane: React.FC<SignWritingLaneProps> = ({
   sequence,
   direction,
+  uiLocale = 'en',
   onToggleDirection,
 }) => {
   const [encodingView, setEncodingView] = useState<'fsw' | 'swu'>('fsw');
@@ -305,6 +308,11 @@ export const SignWritingLane: React.FC<SignWritingLaneProps> = ({
     setTimeout(() => setCopied(false), 1800);
   };
 
+  const manualTypeStr =
+    sequence.language.alphabetType === 'two-handed'
+      ? translateUi(uiLocale, 'manual2H')
+      : translateUi(uiLocale, 'manual1H');
+
   return (
     <div data-testid="signwriting-lane" className="space-y-2.5">
       {/* Metadata & Layout Direction Toggle */}
@@ -314,7 +322,7 @@ export const SignWritingLane: React.FC<SignWritingLaneProps> = ({
             {sequence.language.code}
           </span>{' '}
           · {sequence.language.syntaxOrder.toUpperCase()} ·{' '}
-          {sequence.language.alphabetType === 'two-handed' ? '2H manual' : '1H manual'}
+          {manualTypeStr}
         </div>
 
         <button
@@ -326,12 +334,12 @@ export const SignWritingLane: React.FC<SignWritingLaneProps> = ({
           {direction === 'vertical' ? (
             <>
               <MoveVertical className="h-3 w-3" aria-hidden="true" />
-              <span>Vertical Lane</span>
+              <span>{translateUi(uiLocale, 'verticalLane')}</span>
             </>
           ) : (
             <>
               <MoveHorizontal className="h-3 w-3" aria-hidden="true" />
-              <span>Horizontal Lane</span>
+              <span>{translateUi(uiLocale, 'horizontalLane')}</span>
             </>
           )}
         </button>
@@ -340,7 +348,7 @@ export const SignWritingLane: React.FC<SignWritingLaneProps> = ({
       {/* Gloss Sequence Summary */}
       <div className="rounded-lg bg-[var(--bg-subtle)] px-3 py-2">
         <p className="text-[11px] font-semibold text-[var(--text-muted)]">
-          {sequence.language.name} Gloss Sequence
+          {sequence.language.name} {translateUi(uiLocale, 'glossSequenceSuffix')}
         </p>
         <p className="mt-0.5 font-mono text-xs font-semibold text-[var(--text-primary)]">
           {sequence.localizedGlossLine}
@@ -365,7 +373,7 @@ export const SignWritingLane: React.FC<SignWritingLaneProps> = ({
       {/* FSW / Unicode SWU Encoding Inspector */}
       <div className="rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] p-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div role="group" aria-label="SignWriting encoding notation" className="inline-flex rounded border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-0.5">
+          <div role="group" aria-label={translateUi(uiLocale, 'swNotationAria')} className="inline-flex rounded border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-0.5">
             <button
               type="button"
               onClick={() => setEncodingView('fsw')}
@@ -376,7 +384,7 @@ export const SignWritingLane: React.FC<SignWritingLaneProps> = ({
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
-              FSW (ASCII)
+              {translateUi(uiLocale, 'fswAsciiBtn')}
             </button>
             <button
               type="button"
@@ -388,7 +396,7 @@ export const SignWritingLane: React.FC<SignWritingLaneProps> = ({
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
-              Unicode SWU
+              {translateUi(uiLocale, 'unicodeSwuBtn')}
             </button>
           </div>
 
@@ -401,12 +409,12 @@ export const SignWritingLane: React.FC<SignWritingLaneProps> = ({
             {copied ? (
               <>
                 <Check className="h-3 w-3 text-[var(--accent-primary)]" aria-hidden="true" />
-                <span>Copied</span>
+                <span>{translateUi(uiLocale, 'copiedBtn')}</span>
               </>
             ) : (
               <>
                 <Copy className="h-3 w-3" aria-hidden="true" />
-                <span>Copy</span>
+                <span>{translateUi(uiLocale, 'copyBtn')}</span>
               </>
             )}
           </button>

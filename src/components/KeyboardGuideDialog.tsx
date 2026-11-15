@@ -1,78 +1,40 @@
 import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import {
+  translateUi,
+  type SupportedUiLocale,
+  type UiMessageKey,
+} from '../core/i18n';
 
 interface KeyboardGuideDialogProps {
   open: boolean;
+  uiLocale?: SupportedUiLocale;
   onClose: () => void;
 }
 
-const SHORTCUT_ROWS = [
-  {
-    keys: 'Tab / Shift + Tab',
-    scope: 'Global',
-    action:
-      'Move focus forward or backward across all interactive controls, forms, shard zones, and tables.',
-  },
-  {
-    keys: 'ArrowLeft / ArrowRight',
-    scope: 'Graph, Ring & Merkle Tree',
-    action:
-      'Step sequentially across distributed graph nodes, ring keys, or Merkle tree buckets without using a mouse.',
-  },
-  {
-    keys: 'Home / End',
-    scope: 'Graph, Ring & Merkle Tree',
-    action: 'Jump directly to the first or last node in the active structure.',
-  },
-  {
-    keys: 'Alt + 1..4',
-    scope: 'Global',
-    action:
-      'Switch directly between Graph Workspace, Sync & Quorum, Hash Sharding, and Capabilities.',
-  },
-  {
-    keys: 'Alt + E',
-    scope: 'Global',
-    action:
-      'Open and focus the Multi-Modal Edit Console to edit nodes, arcs, data structures, or capabilities via text or Unicode Braille.',
-  },
-  {
-    keys: 'F D S / J K L',
-    scope: '6-Dot Braille Editor',
-    action:
-      'Toggle Braille Dots 1-3 (left hand) and Dots 4-6 (right hand), Space commits cell, Backspace deletes cell, Enter executes command.',
-  },
-  {
-    keys: 'ASL / PT Builder',
-    scope: 'Edit Console',
-    action:
-      'Compose Topic-Comment (NODE / ARC / CAPABILITY / QUORUM) edits mapped to Protactile Spatial Zones A, B, and C with optional tactile pulse.',
-  },
-  {
-    keys: 'Edit & - / + Steppers',
-    scope: 'Tables & Quorum',
-    action:
-      'Every node, arc, key, register, and active capability row includes a keyboard Edit button; Quorum W/R sliders include discrete - / + steppers.',
-  },
-  {
-    keys: 'Output Channel',
-    scope: 'Toolbar / Announcer',
-    action:
-      'Switch live announcements between Standard, 40-cell Braille (+ Unicode dots), Protactile Language (+ haptic pulse patterns), American Sign Language (ASL Gloss + Sign Cards), and Sutton SignWriting (2D SignBoxes, FSW & Unicode SWU) in any international or custom sign language.',
-  },
-  {
-    keys: '?',
-    scope: 'Global (outside inputs)',
-    action: 'Open this Keyboard & Accessibility Reference dialog.',
-  },
-  {
-    keys: 'Escape',
-    scope: 'Dialog',
-    action: 'Close this dialog and return focus to the triggering control.',
-  },
+const SHORTCUT_ROWS: Array<{
+  keys: string;
+  scopeKey: UiMessageKey;
+  actKey: UiMessageKey;
+}> = [
+  { keys: 'Tab / Shift + Tab', scopeKey: 'kbScopeGlobal', actKey: 'kbActTab' },
+  { keys: 'ArrowLeft / ArrowRight', scopeKey: 'kbScopeNav', actKey: 'kbActArrows' },
+  { keys: 'Home / End', scopeKey: 'kbScopeNav', actKey: 'kbActHomeEnd' },
+  { keys: 'Alt + 1..4', scopeKey: 'kbScopeGlobal', actKey: 'kbActAltNums' },
+  { keys: 'Alt + E', scopeKey: 'kbScopeGlobal', actKey: 'kbActAltE' },
+  { keys: 'F D S / J K L', scopeKey: 'kbScopeBraille', actKey: 'kbActPerkins' },
+  { keys: 'ASL / PT Builder', scopeKey: 'kbScopeConsole', actKey: 'kbActAslPt' },
+  { keys: 'Edit & - / + Steppers', scopeKey: 'kbScopeTables', actKey: 'kbActSteppers' },
+  { keys: 'Output Channel', scopeKey: 'kbScopeToolbar', actKey: 'kbActChannels' },
+  { keys: '?', scopeKey: 'kbScopeGlobal', actKey: 'kbActHelp' },
+  { keys: 'Escape', scopeKey: 'kbScopeDialog', actKey: 'kbActEscape' },
 ];
 
-export const KeyboardGuideDialog: React.FC<KeyboardGuideDialogProps> = ({ open, onClose }) => {
+export const KeyboardGuideDialog: React.FC<KeyboardGuideDialogProps> = ({
+  open,
+  uiLocale = 'en',
+  onClose,
+}) => {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -108,17 +70,17 @@ export const KeyboardGuideDialog: React.FC<KeyboardGuideDialogProps> = ({ open, 
         <div className="flex items-start justify-between gap-4 border-b border-[var(--border-hairline)] pb-4">
           <div>
             <h2 id="keyboard-guide-title" className="text-lg font-bold text-[var(--text-primary)]">
-              Keyboard Navigation and Accessibility Guide
+              {translateUi(uiLocale, 'kbGuideTitle')}
             </h2>
             <p className="mt-1 text-sm text-[var(--text-secondary)]">
-              Every distributed visualization includes a keyboard-operable canvas, structured tables, and Braille, Protactile, and ASL outputs.
+              {translateUi(uiLocale, 'kbGuideSubtitle')}
             </p>
           </div>
           <button
             ref={closeButtonRef}
             type="button"
             onClick={onClose}
-            aria-label="Close keyboard guide"
+            aria-label={translateUi(uiLocale, 'closeDialogAria')}
             className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg border border-[var(--border-hairline)] text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
           >
             <X className="h-4 w-4" aria-hidden="true" />
@@ -129,9 +91,9 @@ export const KeyboardGuideDialog: React.FC<KeyboardGuideDialogProps> = ({ open, 
           <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-[var(--border-hairline)] text-xs font-semibold text-[var(--text-muted)]">
-                <th scope="col" className="py-2 pr-4">Shortcut</th>
-                <th scope="col" className="py-2 pr-4">Context</th>
-                <th scope="col" className="py-2">Behavior</th>
+                <th scope="col" className="py-2 pr-4">{translateUi(uiLocale, 'kbShortcutCol')}</th>
+                <th scope="col" className="py-2 pr-4">{translateUi(uiLocale, 'kbContextCol')}</th>
+                <th scope="col" className="py-2">{translateUi(uiLocale, 'kbBehaviorCol')}</th>
               </tr>
             </thead>
             <tbody>
@@ -141,10 +103,10 @@ export const KeyboardGuideDialog: React.FC<KeyboardGuideDialogProps> = ({ open, 
                     {row.keys}
                   </td>
                   <td className="py-2.5 pr-4 text-xs text-[var(--text-muted)] whitespace-nowrap">
-                    {row.scope}
+                    {translateUi(uiLocale, row.scopeKey)}
                   </td>
                   <td className="py-2.5 text-sm text-[var(--text-secondary)]">
-                    {row.action}
+                    {translateUi(uiLocale, row.actKey)}
                   </td>
                 </tr>
               ))}
@@ -158,7 +120,7 @@ export const KeyboardGuideDialog: React.FC<KeyboardGuideDialogProps> = ({ open, 
             onClick={onClose}
             className="min-h-[40px] rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-sm font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] cursor-pointer"
           >
-            Done
+            {translateUi(uiLocale, 'doneBtn')}
           </button>
         </div>
       </div>

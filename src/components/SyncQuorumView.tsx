@@ -44,6 +44,11 @@ import {
 } from '../core/quorum';
 import { graphToMerkleRecords } from '../core/accessibilityOutput';
 import type { GraphArc, GraphNode } from '../core/ocapGraph';
+import {
+  translateUi,
+  formatUi,
+  type SupportedUiLocale,
+} from '../core/locales';
 
 type SyncSubMode = 'merkle' | 'crdt' | 'quorum';
 
@@ -57,6 +62,7 @@ interface SyncQuorumViewProps {
   quorumConfig: QuorumConfig;
   quorumNodes: QuorumNode[];
   latestWrittenVersion: number;
+  uiLocale?: SupportedUiLocale;
   onUpdateQuorum: (
     config: QuorumConfig,
     nodes: QuorumNode[],
@@ -93,6 +99,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
   quorumConfig,
   quorumNodes,
   latestWrittenVersion,
+  uiLocale = 'en',
   onUpdateQuorum,
   onAnnounce,
 }) => {
@@ -405,24 +412,23 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
             id="sync-quorum-heading"
             className="text-2xl font-bold tracking-tight text-[var(--text-primary)]"
           >
-            Distributed Graph Sync &amp; Quorum Replication
+            {translateUi(uiLocale, 'syncQuorumTitle')}
           </h1>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Reconcile replicas of your live distributed graph ({graphNodes.length} nodes,{' '}
-            {graphArcs.length} arcs) using Merkle anti-entropy, CRDT gossip, and N/W/R quorums.
+            {formatUi(uiLocale, 'syncQuorumSubtitle', graphNodes.length, graphArcs.length)}
           </p>
         </div>
 
         {/* Sub-view Switcher */}
         <div
           role="tablist"
-          aria-label="Replication and consistency mechanisms"
+          aria-label={translateUi(uiLocale, 'replicationMechanismsAria')}
           className="inline-flex rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-1 shrink-0"
         >
           {[
-            { id: 'merkle' as const, label: 'Merkle Graph Sync' },
-            { id: 'crdt' as const, label: 'CRDT Replicas' },
-            { id: 'quorum' as const, label: 'Quorum (N/W/R)' },
+            { id: 'merkle' as const, label: translateUi(uiLocale, 'subMerkle') },
+            { id: 'crdt' as const, label: translateUi(uiLocale, 'subCrdt') },
+            { id: 'quorum' as const, label: translateUi(uiLocale, 'subQuorum') },
           ].map((tab) => {
             const active = subMode === tab.id;
             return (
@@ -448,7 +454,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
       {/* Live Cluster Sync Strip */}
       <dl className="grid grid-cols-1 gap-3 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-4 sm:grid-cols-3">
         <div>
-          <dt className="text-xs text-[var(--text-muted)]">Live Graph Merkle Root</dt>
+          <dt className="text-xs text-[var(--text-muted)]">{translateUi(uiLocale, 'merkleRootLabel')}</dt>
           <dd className="mt-0.5 flex items-center gap-1.5 font-mono text-sm font-semibold text-[var(--text-primary)]">
             {diff.inSync ? (
               <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
@@ -456,19 +462,19 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
               <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" aria-hidden="true" />
             )}
             <span>
-              {treeA.hash} · {diff.inSync ? 'Replica B In Sync' : `${diff.divergentBucketIndices.length} Bucket(s) Divergent`}
+              {treeA.hash} · {diff.inSync ? translateUi(uiLocale, 'replicaBInSync') : formatUi(uiLocale, 'bucketsDivergent', diff.divergentBucketIndices.length)}
             </span>
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-[var(--text-muted)]">CRDT Gossip Replicas</dt>
+          <dt className="text-xs text-[var(--text-muted)]">{translateUi(uiLocale, 'crdtGossipReplicas')}</dt>
           <dd className="mt-0.5 font-mono text-sm font-semibold text-[var(--text-primary)]">
-            {converged ? 'Converged (3/3)' : 'Divergent'} ·{' '}
-            {replicas.filter((r) => !r.partitioned).length}/3 connected
+            {converged ? translateUi(uiLocale, 'converged3of3') : translateUi(uiLocale, 'divergentLabel')} ·{' '}
+            {formatUi(uiLocale, 'connectedCount', replicas.filter((r) => !r.partitioned).length, 3)}
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-[var(--text-muted)]">Active Quorum Overlap</dt>
+          <dt className="text-xs text-[var(--text-muted)]">{translateUi(uiLocale, 'activeQuorumOverlap')}</dt>
           <dd className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-[var(--text-primary)]">
             W({quorumConfig.w})+R({quorumConfig.r})={quorumConfig.w + quorumConfig.r}{' '}
             {strongQuorum ? '>' : '<='} N({quorumConfig.n}) · v{latestWrittenVersion}
@@ -494,8 +500,8 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
               )}
               <span>
                 {diff.inSync
-                  ? 'Live Graph (Replica A) matches Replica B'
-                  : `Divergence detected vs Live Graph in bucket(s): ${diff.divergentBucketIndices.map((b) => `B${b}`).join(', ')}`}
+                  ? translateUi(uiLocale, 'merkleInSyncMsg')
+                  : formatUi(uiLocale, 'merkleDivergeMsg', diff.divergentBucketIndices.map((b) => `B${b}`).join(', '))}
               </span>
             </div>
 
@@ -513,7 +519,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                 className="inline-flex min-h-[40px] items-center gap-2 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3.5 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
               >
                 <GitCompare className="h-4 w-4" aria-hidden="true" />
-                <span>Compare Graph Trees</span>
+                <span>{translateUi(uiLocale, 'compareGraphTrees')}</span>
               </button>
 
               <button
@@ -523,7 +529,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                 className="inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
               >
                 <RefreshCw className="h-4 w-4" aria-hidden="true" />
-                <span>Repair Divergent Buckets</span>
+                <span>{translateUi(uiLocale, 'repairDivergentBuckets')}</span>
               </button>
             </div>
           </div>
@@ -534,21 +540,21 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                    Live Graph Binary Merkle Tree (Replica A vs Replica B)
+                    {translateUi(uiLocale, 'merkleTreeTitle')}
                   </h2>
                   <p className="text-xs text-[var(--text-muted)]">
-                    Replica A hashes all live graph nodes and arcs. Use ArrowLeft / ArrowRight to inspect buckets.
+                    {translateUi(uiLocale, 'merkleTreeSubtitle')}
                   </p>
                 </div>
                 <div className="font-mono text-xs tabular-nums text-[var(--text-secondary)]">
-                  Checks: <strong>{diff.comparisonsPerformed}</strong> / Records:{' '}
-                  <strong>{diff.totalLinearEntries}</strong>
+                  {formatUi(uiLocale, 'checksVsRecords', diff.comparisonsPerformed, diff.totalLinearEntries)}
                 </div>
               </div>
 
               <div
                 tabIndex={0}
                 role="region"
+                dir="ltr"
                 aria-label="Live graph Merkle tree comparison diagram. Use ArrowLeft and ArrowRight to step through nodes."
                 onKeyDown={handleTreeKeyDown}
                 className="mt-4 overflow-x-auto rounded-lg bg-[var(--bg-subtle)] p-3"
@@ -636,7 +642,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
               <div className="mt-4 grid grid-cols-1 gap-4 border-t border-[var(--border-hairline)] pt-4 sm:grid-cols-2">
                 <div>
                   <h3 className="text-xs font-semibold text-[var(--text-muted)]">
-                    Replica A (Live Graph) · {selectedNodeA.rangeLabel}
+                    {formatUi(uiLocale, 'replicaALabel', selectedNodeA.rangeLabel)}
                   </h3>
                   <p className="mt-1 font-mono text-sm font-semibold text-[var(--text-primary)]">
                     {selectedNodeA.hash}
@@ -654,7 +660,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
 
                 <div>
                   <h3 className="text-xs font-semibold text-[var(--text-muted)]">
-                    Replica B (Standby) · {selectedNodeB.rangeLabel}
+                    {formatUi(uiLocale, 'replicaBLabel', selectedNodeB.rangeLabel)}
                   </h3>
                   <p
                     className={`mt-1 font-mono text-sm font-semibold ${
@@ -664,7 +670,9 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                     }`}
                   >
                     {selectedNodeB.hash} (
-                    {selectedNodeA.hash === selectedNodeB.hash ? 'Match' : 'Divergent'})
+                    {selectedNodeA.hash === selectedNodeB.hash
+                      ? translateUi(uiLocale, 'hashMatch')
+                      : translateUi(uiLocale, 'hashDivergent')})
                   </p>
                   {selectedNodeB.entries && (
                     <ul className="mt-2 space-y-1 text-xs font-mono text-[var(--text-secondary)]">
@@ -687,10 +695,10 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                 className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
               >
                 <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                  Simulate Graph Drift on Replica B
+                  {translateUi(uiLocale, 'simulateDriftTitle')}
                 </h2>
                 <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                  Corrupt a live node or arc record on Replica B, then repair only divergent Merkle buckets.
+                  {translateUi(uiLocale, 'simulateDriftSubtitle')}
                 </p>
 
                 <div className="mt-4 space-y-3">
@@ -699,7 +707,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                       htmlFor="merkle-key-select"
                       className="block text-xs font-medium text-[var(--text-secondary)]"
                     >
-                      Graph Record Key
+                      {translateUi(uiLocale, 'graphRecordKey')}
                     </label>
                     <select
                       id="merkle-key-select"
@@ -722,7 +730,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                       htmlFor="merkle-drift-val"
                       className="block text-xs font-medium text-[var(--text-secondary)]"
                     >
-                      Drifted Payload
+                      {translateUi(uiLocale, 'driftedPayload')}
                     </label>
                     <input
                       id="merkle-drift-val"
@@ -748,22 +756,22 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                   className="mt-4 inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
                 >
                   <Wrench className="h-4 w-4" aria-hidden="true" />
-                  <span>Mutate Record on Replica B</span>
+                  <span>{translateUi(uiLocale, 'mutateReplicaB')}</span>
                 </button>
               </form>
 
               <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5">
                 <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                  Leaf Bucket Hash Matrix
+                  {translateUi(uiLocale, 'leafBucketMatrix')}
                 </h2>
                 <div className="mt-3 overflow-x-auto">
                   <table className="w-full border-collapse text-left text-xs">
                     <thead>
                       <tr className="border-b border-[var(--border-hairline)] text-[var(--text-muted)]">
-                        <th scope="col" className="py-2 pr-2">Bucket</th>
-                        <th scope="col" className="py-2 pr-2">Graph (A)</th>
-                        <th scope="col" className="py-2 pr-2">Replica B</th>
-                        <th scope="col" className="py-2">Status</th>
+                        <th scope="col" className="py-2 pr-2">{translateUi(uiLocale, 'colBucket')}</th>
+                        <th scope="col" className="py-2 pr-2">{translateUi(uiLocale, 'colGraphA')}</th>
+                        <th scope="col" className="py-2 pr-2">{translateUi(uiLocale, 'colReplicaB')}</th>
+                        <th scope="col" className="py-2">{translateUi(uiLocale, 'colStatus')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border-hairline)] font-mono">
@@ -796,7 +804,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                                     : 'text-red-600 dark:text-red-400'
                                 }`}
                               >
-                                {match ? 'Match' : 'Divergent'}
+                                {match ? translateUi(uiLocale, 'hashMatch') : translateUi(uiLocale, 'hashDivergent')}
                               </td>
                             </tr>
                           );
@@ -828,8 +836,8 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
               )}
               <span>
                 {converged
-                  ? 'All Graph Tag & Config Replicas Converged'
-                  : 'Replicas Diverged During Partition / Local Writes'}
+                  ? translateUi(uiLocale, 'crdtConvergedMsg')
+                  : translateUi(uiLocale, 'crdtDivergedMsg')}
               </span>
             </div>
 
@@ -839,7 +847,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
               className="inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] cursor-pointer"
             >
               <GitMerge className="h-4 w-4" aria-hidden="true" />
-              <span>{anyPartitioned ? 'Heal & Sync All' : 'Gossip Sync All'}</span>
+              <span>{anyPartitioned ? translateUi(uiLocale, 'healAndSyncAll') : translateUi(uiLocale, 'gossipSyncAll')}</span>
             </button>
           </div>
 
@@ -850,7 +858,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                   htmlFor="crdt-target-replica"
                   className="block text-xs font-semibold text-[var(--text-secondary)]"
                 >
-                  Target Replica
+                  {translateUi(uiLocale, 'targetReplica')}
                 </label>
                 <select
                   id="crdt-target-replica"
@@ -860,7 +868,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                 >
                   {replicas.map((r) => (
                     <option key={r.id} value={r.id}>
-                      {r.label} {r.partitioned ? '(Partitioned)' : '(Connected)'}
+                      {r.label} {r.partitioned ? `(${translateUi(uiLocale, 'partitionedLabel')})` : `(${translateUi(uiLocale, 'connectedLabel')})`}
                     </option>
                   ))}
                 </select>
@@ -872,7 +880,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                     htmlFor="crdt-orset-input"
                     className="block text-xs font-medium text-[var(--text-secondary)]"
                   >
-                    Add OR-Set Graph Tag
+                    {translateUi(uiLocale, 'addOrSetTag')}
                   </label>
                   <input
                     id="crdt-orset-input"
@@ -891,7 +899,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                   className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
                 >
                   <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Add Tag</span>
+                  <span>{translateUi(uiLocale, 'addTagBtn')}</span>
                 </button>
               </form>
 
@@ -901,7 +909,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                     htmlFor="crdt-lww-key"
                     className="block text-xs font-medium text-[var(--text-secondary)]"
                   >
-                    LWW Property
+                    {translateUi(uiLocale, 'lwwProperty')}
                   </label>
                   <input
                     id="crdt-lww-key"
@@ -920,7 +928,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                     htmlFor="crdt-lww-val"
                     className="block text-xs font-medium text-[var(--text-secondary)]"
                   >
-                    Value
+                    {translateUi(uiLocale, 'valueLabel')}
                   </label>
                   <input
                     ref={lwwValRef}
@@ -939,7 +947,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                   type="submit"
                   className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
                 >
-                  <span>Set Register</span>
+                  <span>{translateUi(uiLocale, 'setRegister')}</span>
                 </button>
               </form>
             </div>
@@ -984,7 +992,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                         ) : (
                           <Wifi className="h-3.5 w-3.5" aria-hidden="true" />
                         )}
-                        <span>{replica.partitioned ? 'Partitioned' : 'Connected'}</span>
+                        <span>{replica.partitioned ? translateUi(uiLocale, 'partitionedLabel') : translateUi(uiLocale, 'connectedLabel')}</span>
                       </p>
                     </div>
                     <button
@@ -993,19 +1001,19 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                       aria-pressed={replica.partitioned}
                       className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
                     >
-                      {replica.partitioned ? 'Reconnect' : 'Partition'}
+                      {replica.partitioned ? translateUi(uiLocale, 'reconnectBtn') : translateUi(uiLocale, 'partitionBtn')}
                     </button>
                   </div>
 
                   <div className="mt-3 space-y-1 text-xs text-[var(--text-secondary)]">
                     <div className="flex items-center justify-between">
-                      <span>Vector Clock</span>
+                      <span>{translateUi(uiLocale, 'vectorClock')}</span>
                       <span className="font-mono font-semibold text-[var(--text-primary)]">
                         {formatVectorClock(replica.vectorClock)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span>Lamport / Rel</span>
+                      <span>{translateUi(uiLocale, 'lamportRel')}</span>
                       <span className="font-mono">
                         t={replica.lamportClock} · {relationToPrimary}
                       </span>
@@ -1014,7 +1022,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
 
                   <div className="mt-4 border-t border-[var(--border-hairline)] pt-3">
                     <h3 className="text-xs font-semibold text-[var(--text-muted)]">
-                      OR-Set Members ({activeItems.length})
+                      {formatUi(uiLocale, 'orSetMembers', activeItems.length)}
                     </h3>
                     <ul className="mt-2 space-y-1.5">
                       {activeItems.map((item) => (
@@ -1027,7 +1035,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                             className="inline-flex min-h-[28px] items-center gap-1 rounded border border-[var(--border-hairline)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)] hover:text-red-600 cursor-pointer"
                           >
                             <Trash2 className="h-3 w-3" aria-hidden="true" />
-                            <span>Remove</span>
+                            <span>{translateUi(uiLocale, 'removeBtn')}</span>
                           </button>
                         </li>
                       ))}
@@ -1036,7 +1044,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
 
                   <div className="mt-4 border-t border-[var(--border-hairline)] pt-3">
                     <h3 className="text-xs font-semibold text-[var(--text-muted)]">
-                      LWW-Register Map ({lwwEntries.length})
+                      {formatUi(uiLocale, 'lwwRegisterMap', lwwEntries.length)}
                     </h3>
                     <dl className="mt-2 space-y-1.5 text-xs">
                       {lwwEntries.map((entry) => (
@@ -1065,7 +1073,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                               className="inline-flex min-h-[26px] items-center gap-1 rounded border border-[var(--border-hairline)] px-1.5 py-0.5 font-sans text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
                             >
                               <Edit3 className="h-3 w-3" aria-hidden="true" />
-                              <span>Edit</span>
+                              <span>{translateUi(uiLocale, 'editBtn')}</span>
                             </button>
                           </dd>
                         </div>
@@ -1085,17 +1093,17 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
           <div className="lg:col-span-5 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 space-y-5">
             <div>
               <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                Quorum Thresholds (N = {quorumConfig.n})
+                {formatUi(uiLocale, 'quorumThresholdsTitle', quorumConfig.n)}
               </h2>
               <p className="text-xs text-[var(--text-muted)]">
-                {reachableCount} of {quorumConfig.n} replicas reachable for graph commits.
+                {formatUi(uiLocale, 'replicasReachableDesc', reachableCount, quorumConfig.n)}
               </p>
             </div>
 
             <div>
               <div className="flex items-center justify-between text-xs font-medium">
                 <label htmlFor="slider-w" className="text-[var(--text-secondary)]">
-                  Write Quorum (W)
+                  {translateUi(uiLocale, 'writeQuorumW')}
                 </label>
                 <div className="flex items-center gap-1.5">
                   <button
@@ -1137,7 +1145,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
             <div>
               <div className="flex items-center justify-between text-xs font-medium">
                 <label htmlFor="slider-r" className="text-[var(--text-secondary)]">
-                  Read Quorum (R)
+                  {translateUi(uiLocale, 'readQuorumR')}
                 </label>
                 <div className="flex items-center gap-1.5">
                   <button
@@ -1182,7 +1190,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                   htmlFor="quorum-write-input"
                   className="block text-xs font-medium text-[var(--text-secondary)]"
                 >
-                  Write Graph Epoch Value
+                  {translateUi(uiLocale, 'writeGraphEpoch')}
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -1200,7 +1208,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                     className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] cursor-pointer"
                   >
                     <Upload className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>Write (W={quorumConfig.w})</span>
+                    <span>{formatUi(uiLocale, 'writeBtn', quorumConfig.w)}</span>
                   </button>
                 </div>
                 {writeError && (
@@ -1218,7 +1226,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                     onChange={(e) => setEnableReadRepair(e.target.checked)}
                     className="h-4 w-4 accent-[var(--accent-primary)]"
                   />
-                  <span>Enable Read-Repair</span>
+                  <span>{translateUi(uiLocale, 'enableReadRepair')}</span>
                 </label>
 
                 <div className="flex items-center gap-2">
@@ -1238,7 +1246,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                     className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
                   >
                     <Download className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>Read (R={quorumConfig.r})</span>
+                    <span>{formatUi(uiLocale, 'readBtn', quorumConfig.r)}</span>
                   </button>
                 </div>
               </div>
@@ -1248,17 +1256,17 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
           <div className="lg:col-span-7 space-y-5">
             <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5">
               <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                Quorum Replica State Table (v{latestWrittenVersion})
+                {formatUi(uiLocale, 'quorumReplicaTableTitle', latestWrittenVersion)}
               </h2>
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full border-collapse text-left text-sm">
                   <thead>
                     <tr className="border-b border-[var(--border-hairline)] text-xs font-semibold text-[var(--text-muted)]">
-                      <th scope="col" className="py-2 pr-3">Replica</th>
-                      <th scope="col" className="py-2 pr-3">Version</th>
-                      <th scope="col" className="py-2 pr-3">Value</th>
-                      <th scope="col" className="py-2 pr-3">Freshness</th>
-                      <th scope="col" className="py-2 text-right">Network</th>
+                      <th scope="col" className="py-2 pr-3">{translateUi(uiLocale, 'colReplica')}</th>
+                      <th scope="col" className="py-2 pr-3">{translateUi(uiLocale, 'colVersion')}</th>
+                      <th scope="col" className="py-2 pr-3">{translateUi(uiLocale, 'colValue')}</th>
+                      <th scope="col" className="py-2 pr-3">{translateUi(uiLocale, 'colFreshness')}</th>
+                      <th scope="col" className="py-2 text-right">{translateUi(uiLocale, 'colNetwork')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border-hairline)]">
@@ -1282,7 +1290,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                                 : 'text-amber-700 dark:text-amber-400'
                             }`}
                           >
-                            {isFresh ? 'Up-to-date' : 'Stale'}
+                            {isFresh ? translateUi(uiLocale, 'upToDate') : translateUi(uiLocale, 'staleLabel')}
                           </td>
                           <td className="py-2.5 text-right">
                             <button
@@ -1294,12 +1302,12 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                               {node.reachable ? (
                                 <>
                                   <Wifi className="h-3.5 w-3.5" aria-hidden="true" />
-                                  <span>Reachable</span>
+                                  <span>{translateUi(uiLocale, 'reachableLabel')}</span>
                                 </>
                               ) : (
                                 <>
                                   <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
-                                  <span>Offline</span>
+                                  <span>{translateUi(uiLocale, 'offlineLabel')}</span>
                                 </>
                               )}
                             </button>
@@ -1318,7 +1326,7 @@ export const SyncQuorumView: React.FC<SyncQuorumViewProps> = ({
                 className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
               >
                 <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-                  Last Quorum Read Result
+                  {translateUi(uiLocale, 'lastQuorumReadResult')}
                 </h3>
                 <p className="mt-1 text-sm text-[var(--text-secondary)]">{lastRead.message}</p>
               </div>

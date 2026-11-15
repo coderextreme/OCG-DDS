@@ -17,11 +17,17 @@ import {
   type CapabilityToken,
   type GraphNode,
 } from '../core/ocapGraph';
+import {
+  translateUi,
+  formatUi,
+  type SupportedUiLocale,
+} from '../core/locales';
 
 interface CapabilitiesViewProps {
   nodes: GraphNode[];
   capabilities: CapabilityToken[];
   activeCapabilityId: string;
+  uiLocale?: SupportedUiLocale;
   onUpdateCapabilities: (caps: CapabilityToken[], activeId: string) => void;
   onAnnounce: (severity: 'info' | 'warning' | 'success', summary: string) => void;
 }
@@ -40,6 +46,7 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
   nodes,
   capabilities,
   activeCapabilityId,
+  uiLocale = 'en',
   onUpdateCapabilities,
   onAnnounce,
 }) => {
@@ -150,10 +157,10 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
             id="ocap-registry-heading"
             className="text-2xl font-bold tracking-tight text-[var(--text-primary)]"
           >
-            Object-Capability Security Registry
+            {translateUi(uiLocale, 'capRegistryTitle')}
           </h1>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Delegate narrower shard-confined capability tokens (authority can only shrink) or transitively revoke compromised subtrees.
+            {translateUi(uiLocale, 'capRegistrySubtitle')}
           </p>
         </div>
 
@@ -171,8 +178,9 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
               <ShieldAlert className="h-4 w-4" aria-hidden="true" />
             )}
             <span>
-              Active: {activeCap?.label} ({activeCap?.scope}) ·{' '}
-              {activeCapValid ? `${reachableNodesForActive.length}/${nodes.length} graph nodes in scope` : 'REVOKED'}
+              {activeCapValid
+                ? formatUi(uiLocale, 'activeCapStatusLine', activeCap?.label, activeCap?.scope, reachableNodesForActive.length, nodes.length)
+                : `Active: ${activeCap?.label} (${activeCap?.scope}) · ${translateUi(uiLocale, 'tokenRevokedLabel')}`}
             </span>
           </div>
         </div>
@@ -202,11 +210,11 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
           <div className="flex items-center gap-2">
             <KeyRound className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              Attenuate Child Capability
+              {translateUi(uiLocale, 'attenuateTitle')}
             </h2>
           </div>
           <p className="text-xs text-[var(--text-muted)]">
-            Child tokens cannot escalate rights or widen shard confinement beyond their parent capability.
+            {translateUi(uiLocale, 'attenuateSubtitle')}
           </p>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -215,7 +223,7 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
                 htmlFor="att-parent"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Parent Token
+                {translateUi(uiLocale, 'parentTokenLabel')}
               </label>
               <select
                 id="att-parent"
@@ -235,7 +243,7 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
                 htmlFor="att-scope"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Confined Scope
+                {translateUi(uiLocale, 'confinedScopeLabel')}
               </label>
               <select
                 id="att-scope"
@@ -243,7 +251,7 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
                 onChange={(e) => setAttScope(e.target.value as CapabilityScope)}
                 className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-xs text-[var(--text-primary)]"
               >
-                <option value="all">all</option>
+                <option value="all">{translateUi(uiLocale, 'scopeAll')}</option>
                 <option value="Shard-A">Shard-A</option>
                 <option value="Shard-B">Shard-B</option>
                 <option value="Shard-C">Shard-C</option>
@@ -254,7 +262,7 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
                 htmlFor="att-label"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                New Token Name
+                {translateUi(uiLocale, 'newTokenNameLabel')}
               </label>
               <input
                 id="att-label"
@@ -270,7 +278,7 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
                 htmlFor="att-holder"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Holder Principal
+                {translateUi(uiLocale, 'holderPrincipalLabel')}
               </label>
               <input
                 id="att-holder"
@@ -285,7 +293,7 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
 
           <fieldset>
             <legend className="text-xs font-medium text-[var(--text-secondary)]">
-              Attenuated Rights
+              {translateUi(uiLocale, 'attenuatedRightsLabel')}
             </legend>
             <div className="mt-1.5 flex flex-wrap gap-3">
               {ALL_RIGHTS.map((r) => (
@@ -315,7 +323,7 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
             type="submit"
             className="min-h-[40px] w-full rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] cursor-pointer"
           >
-            Mint Attenuated Token
+            {translateUi(uiLocale, 'mintAttenuatedToken')}
           </button>
         </form>
 
@@ -323,10 +331,10 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
         <div className="lg:col-span-7 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 space-y-4">
           <div>
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              Capability Delegation Chain ({capabilities.length} tokens)
+              {formatUi(uiLocale, 'delegationChainTitle', capabilities.length)}
             </h2>
             <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-              Select a token to enforce its scope across the Distributed Graph Workspace, edit metadata, or revoke descendants.
+              {translateUi(uiLocale, 'delegationChainSubtitle')}
             </p>
           </div>
 
@@ -338,10 +346,10 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-                  Editing Capability Metadata ({editingCapId}) · Non-Amplifying
+                  {formatUi(uiLocale, 'editingCapTitle', editingCapId)}
                 </h3>
                 <span className="font-mono text-[11px] text-[var(--text-muted)]">
-                  Scope &amp; rights cannot be widened
+                  {translateUi(uiLocale, 'scopeRightsLocked')}
                 </span>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -350,7 +358,7 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
                     htmlFor="edit-cap-label"
                     className="block text-xs font-medium text-[var(--text-secondary)]"
                   >
-                    Token Label
+                    {translateUi(uiLocale, 'tokenLabelField')}
                   </label>
                   <input
                     ref={editCapLabelRef}
@@ -366,7 +374,7 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
                     htmlFor="edit-cap-holder"
                     className="block text-xs font-medium text-[var(--text-secondary)]"
                   >
-                    Holder Principal
+                    {translateUi(uiLocale, 'holderPrincipalLabel')}
                   </label>
                   <input
                     id="edit-cap-holder"
@@ -383,13 +391,13 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
                   onClick={() => setEditingCapId(null)}
                   className="min-h-[34px] rounded-lg border border-[var(--border-hairline)] px-3 py-1 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                 >
-                  Cancel
+                  {translateUi(uiLocale, 'cancelBtn')}
                 </button>
                 <button
                   type="submit"
                   className="min-h-[34px] rounded-lg bg-[var(--accent-primary)] px-3.5 py-1 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] cursor-pointer"
                 >
-                  Save Metadata
+                  {translateUi(uiLocale, 'saveMetadataBtn')}
                 </button>
               </div>
             </form>
@@ -399,11 +407,11 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
             <table className="w-full border-collapse text-left text-xs">
               <thead>
                 <tr className="border-b border-[var(--border-hairline)] text-[var(--text-muted)]">
-                  <th scope="col" className="py-2 pr-2">Token &amp; Parent</th>
-                  <th scope="col" className="py-2 pr-2">Scope</th>
-                  <th scope="col" className="py-2 pr-2">Rights</th>
-                  <th scope="col" className="py-2 pr-2">Status</th>
-                  <th scope="col" className="py-2 text-right">Actions</th>
+                  <th scope="col" className="py-2 pr-2">{translateUi(uiLocale, 'colTokenParent')}</th>
+                  <th scope="col" className="py-2 pr-2">{translateUi(uiLocale, 'colScope')}</th>
+                  <th scope="col" className="py-2 pr-2">{translateUi(uiLocale, 'colRights')}</th>
+                  <th scope="col" className="py-2 pr-2">{translateUi(uiLocale, 'colStatus')}</th>
+                  <th scope="col" className="py-2 text-right">{translateUi(uiLocale, 'colAction')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-hairline)]">
@@ -443,7 +451,7 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
                           ) : (
                             <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
                           )}
-                          <span>{active ? 'Active' : 'Revoked'}</span>
+                          <span>{active ? translateUi(uiLocale, 'statusActive') : translateUi(uiLocale, 'tokenRevokedLabel')}</span>
                         </span>
                       </td>
                       <td className="py-2.5 text-right whitespace-nowrap space-x-1.5">
@@ -459,7 +467,7 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
                           disabled={isCurrent}
                           className="min-h-[32px] rounded border border-[var(--border-hairline)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                         >
-                          {isCurrent ? 'Active Token' : 'Activate'}
+                          {isCurrent ? translateUi(uiLocale, 'activeTokenBtn') : translateUi(uiLocale, 'activateBtn')}
                         </button>
                         {active && (
                           <button
@@ -478,7 +486,7 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
                             className="inline-flex min-h-[32px] items-center gap-1 rounded border border-[var(--border-hairline)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
                           >
                             <Edit3 className="h-3 w-3" aria-hidden="true" />
-                            <span>Edit</span>
+                            <span>{translateUi(uiLocale, 'editBtn')}</span>
                           </button>
                         )}
                         {cap.id !== 'cap-root' && active && (
@@ -488,7 +496,7 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
                             aria-label={`Revoke capability ${cap.label}`}
                             className="min-h-[32px] rounded border border-red-500/50 px-2.5 py-1 text-[11px] font-semibold text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
                           >
-                            Revoke
+                            {translateUi(uiLocale, 'revokeBtn')}
                           </button>
                         )}
                       </td>

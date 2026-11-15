@@ -43,7 +43,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         {/* Zone 2: 4 concise single-line nav links */}
         <nav
-          aria-label="Distributed graph and capability modules"
+          aria-label={translateUi(uiLocale, 'navAriaLabel')}
           className="order-3 flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-[var(--border-hairline)] pt-2 md:order-2 md:w-auto md:flex-nowrap md:justify-center md:gap-7 md:border-t-0 md:pt-0"
         >
           {NAV_ITEMS.map((item) => {

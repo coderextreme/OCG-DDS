@@ -141,6 +141,7 @@ export default function App() {
     {
       id: 'init-1',
       timestamp: formatTimestamp(),
+      timestampMs: Date.now(),
       module: 'graph',
       severity: 'info',
       summary:
@@ -160,6 +161,7 @@ export default function App() {
         {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           timestamp: formatTimestamp(),
+          timestampMs: Date.now(),
           module,
           severity,
           summary,
@@ -178,7 +180,7 @@ export default function App() {
     }
   }, [accessibilityProfile]);
 
-  // Sync theme, reduced motion, language, and RTL/LTR direction on documentElement
+  // Sync theme, reduced motion, language, RTL/LTR direction, title, and meta description
   useEffect(() => {
     const root = document.documentElement;
     root.classList.remove('dark', 'high-contrast', 'reduced-motion');
@@ -193,6 +195,11 @@ export default function App() {
     const localeSpec = resolveUiLocale(uiLocale);
     root.lang = localeSpec.code;
     root.dir = localeSpec.dir;
+    document.title = translateUi(uiLocale, 'appTitle');
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', translateUi(uiLocale, 'appDescription'));
+    }
   }, [theme, reducedMotion, uiLocale]);
 
   // Global keyboard shortcuts (Alt+1..4 module switching, ? for Keyboard Guide)
@@ -350,7 +357,7 @@ export default function App() {
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-[var(--accent-primary)] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-[var(--accent-text-on)]"
       >
-        Skip to main content
+        {translateUi(uiLocale, 'skipToMain')}
       </a>
 
       <TopBar
@@ -449,6 +456,7 @@ export default function App() {
                 quorumConfig={quorumConfig}
                 quorumNodes={quorumNodes}
                 latestWrittenVersion={quorumVersion}
+                uiLocale={uiLocale}
                 onUpdateQuorum={(cfg, nextNodes, nextVer) => {
                   setQuorumConfig(cfg);
                   setQuorumNodes(nextNodes);
@@ -464,6 +472,7 @@ export default function App() {
                 nodes={ringNodes}
                 entries={ringEntries}
                 replicationFactor={replicationFactor}
+                uiLocale={uiLocale}
                 onChangeNodes={setRingNodes}
                 onChangeEntries={setRingEntries}
                 onChangeReplicationFactor={setReplicationFactor}
@@ -476,6 +485,7 @@ export default function App() {
                 nodes={graphNodes}
                 capabilities={capabilities}
                 activeCapabilityId={activeCapabilityId}
+                uiLocale={uiLocale}
                 onUpdateCapabilities={(nextCaps, nextActiveId) => {
                   setCapabilities(nextCaps);
                   setActiveCapabilityId(nextActiveId);
@@ -511,12 +521,13 @@ export default function App() {
       <footer className="border-t border-[var(--border-hairline)] bg-[var(--bg-surface)] py-4">
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-2 px-4 text-xs text-[var(--text-muted)] sm:px-6">
           <span>{translateUi(uiLocale, 'footerSystem')}</span>
-          <span>Braille · Protactile · ASL · International SignWriting · Zero-audio dependency</span>
+          <span>{translateUi(uiLocale, 'footerCapabilities')}</span>
         </div>
       </footer>
 
       <KeyboardGuideDialog
         open={keyboardGuideOpen}
+        uiLocale={uiLocale}
         onClose={handleCloseKeyboardGuide}
       />
 

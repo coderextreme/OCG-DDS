@@ -13,7 +13,11 @@ import {
   dotsToBrailleCell,
   fromUnicodeBraille,
 } from '../core/accessibleEditing';
-import { translateUi, type SupportedUiLocale } from '../core/i18n';
+import {
+  translateUi,
+  type SupportedUiLocale,
+  type UiMessageKey,
+} from '../core/i18n';
 import type { AccessibleOutputChannel } from '../types/system';
 
 type InputModality = 'command' | 'braille' | 'asl-pt';
@@ -41,15 +45,15 @@ const BRAILLE_DOTS: Array<{ dot: number; keyHint: string; hand: 'Left' | 'Right'
   { dot: 6, keyHint: 'L', hand: 'Right' },
 ];
 
-const QUICK_TEMPLATES: Array<{ label: string; command: string }> = [
-  { label: 'Add Node', command: 'add node N6 "Edge Cache" Shard-B edge' },
-  { label: 'Update Node', command: 'update node N3 label="Primary Ledger" status=active' },
-  { label: 'Add Arc', command: 'add arc A6 N3->N5 audit-mirror w=9' },
-  { label: 'Batch Edit', command: 'batch add node N7 "Sync Node" Shard-C | add arc A7 N4->N7 sync w=5' },
-  { label: 'Edit OCap', command: 'cap edit cap-shard-b label="Zone-B Operator"' },
-  { label: 'CRDT Tag', command: 'crdt add R1 accessible:ok' },
-  { label: 'Ring Put', command: 'ring put key:node-6 active' },
-  { label: 'Quorum W/R', command: 'quorum set w=4 r=2' },
+const QUICK_TEMPLATES: Array<{ key: UiMessageKey; command: string }> = [
+  { key: 'tplAddNode', command: 'add node N6 "Edge Cache" Shard-B edge' },
+  { key: 'tplUpdateNode', command: 'update node N3 label="Primary Ledger" status=active' },
+  { key: 'tplAddArc', command: 'add arc A6 N3->N5 audit-mirror w=9' },
+  { key: 'tplBatchEdit', command: 'batch add node N7 "Sync Node" Shard-C | add arc A7 N4->N7 sync w=5' },
+  { key: 'tplEditOcap', command: 'cap edit cap-shard-b label="Zone-B Operator"' },
+  { key: 'tplCrdtTag', command: 'crdt add R1 accessible:ok' },
+  { key: 'tplRingPut', command: 'ring put key:node-6 active' },
+  { key: 'tplQuorumWr', command: 'quorum set w=4 r=2' },
 ];
 
 export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
@@ -211,7 +215,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
 
   return (
     <section
-      aria-label="Universal Accessible Editor for Blind, Deaf-Blind, and Deaf Users"
+      aria-label={translateUi(uiLocale, 'editConsoleAria')}
       className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-4 py-3 sm:px-5"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -226,13 +230,13 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
           {expanded && (
             <div
               role="tablist"
-              aria-label="Accessible editing input mode"
+              aria-label={translateUi(uiLocale, 'editConsoleModeAria')}
               className="flex flex-wrap max-w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] p-0.5 gap-0.5"
             >
               {[
-                { id: 'command' as const, label: 'Command / SR' },
-                { id: 'braille' as const, label: '6-Dot Braille' },
-                { id: 'asl-pt' as const, label: 'ASL / Protactile Builder' },
+                { id: 'command' as const, key: 'tabCommandSr' as const },
+                { id: 'braille' as const, key: 'tabBraille6' as const },
+                { id: 'asl-pt' as const, key: 'tabAslPtBuilder' as const },
               ].map((m) => (
                 <button
                   key={m.id}
@@ -246,7 +250,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                   }`}
                 >
-                  {m.label}
+                  {translateUi(uiLocale, m.key)}
                 </button>
               ))}
             </div>
@@ -258,7 +262,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
             aria-expanded={expanded}
             className="inline-flex min-h-[32px] items-center gap-1 rounded-lg border border-[var(--border-hairline)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
           >
-            <span>{expanded ? 'Hide Editor' : 'Open Editor'}</span>
+            <span>{expanded ? translateUi(uiLocale, 'hideEditor') : translateUi(uiLocale, 'openEditor')}</span>
             {expanded ? (
               <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
             ) : (
@@ -285,7 +289,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                     htmlFor="accessible-command-input"
                     className="block text-xs font-medium text-[var(--text-secondary)]"
                   >
-                    Enter Graph, Data-Structure, or Capability Edit (ASCII, ASL order, or Unicode Braille ⠁-⠿)
+                    {translateUi(uiLocale, 'commandInputLabel')}
                   </label>
                   <input
                     ref={commandInputRef}
@@ -308,16 +312,16 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
 
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-[11px] font-medium text-[var(--text-muted)]">
-                  Templates:
+                  {translateUi(uiLocale, 'templatesLabel')}:
                 </span>
                 {QUICK_TEMPLATES.map((tpl) => (
                   <button
-                    key={tpl.label}
+                    key={tpl.key}
                     type="button"
                     onClick={() => setCommandText(tpl.command)}
                     className="rounded border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-2 py-1 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                   >
-                    {tpl.label}
+                    {translateUi(uiLocale, tpl.key)}
                   </button>
                 ))}
               </div>
@@ -329,14 +333,14 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
             <div
               tabIndex={0}
               onKeyDown={handlePerkinsKeyDown}
-              aria-label="Perkins 6-dot Braille editor. Toggle dot buttons or enable F D S J K L chord typing."
+              aria-label={translateUi(uiLocale, 'brailleEditorAria')}
               className="space-y-3 rounded-lg bg-[var(--bg-subtle)] p-3"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Keyboard className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                   <span className="text-xs font-semibold text-[var(--text-primary)]">
-                    6-Dot Perkins Braille Cell Entry
+                    {translateUi(uiLocale, 'brailleEntryTitle')}
                   </span>
                 </div>
                 <label className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)] cursor-pointer">
@@ -346,13 +350,14 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                     onChange={(e) => setPerkinsKeyboardMode(e.target.checked)}
                     className="h-3.5 w-3.5 accent-[var(--accent-primary)]"
                   />
-                  <span>Capture F/D/S (Dots 1-3) &amp; J/K/L (Dots 4-6)</span>
+                  <span>{translateUi(uiLocale, 'brailleCaptureChords')}</span>
                 </label>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
                 {BRAILLE_DOTS.map(({ dot, keyHint, hand }) => {
                   const active = activeDots.includes(dot);
+                  const handName = hand === 'Left' ? translateUi(uiLocale, 'handLeft') : translateUi(uiLocale, 'handRight');
                   return (
                     <button
                       key={dot}
@@ -365,7 +370,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                           : 'border-[var(--border-hairline)] bg-[var(--bg-surface)] text-[var(--text-primary)]'
                       }`}
                     >
-                      Dot {dot} ({hand} {keyHint})
+                      {translateUi(uiLocale, 'dotWord')} {dot} ({handName} {keyHint})
                     </button>
                   );
                 })}
@@ -377,7 +382,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                   onClick={commitActiveCell}
                   className="min-h-[36px] rounded-lg bg-[var(--accent-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--accent-text-on)] cursor-pointer"
                 >
-                  Commit Cell ({previewCell.unicode} {previewCell.ascii || 'mod/space'})
+                  {translateUi(uiLocale, 'commitCell')} ({previewCell.unicode} {previewCell.ascii || 'mod/space'})
                 </button>
                 <button
                   type="button"
@@ -387,7 +392,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                   }}
                   className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] cursor-pointer"
                 >
-                  Space Cell
+                  {translateUi(uiLocale, 'spaceCell')}
                 </button>
                 <button
                   type="button"
@@ -395,7 +400,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                   className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] cursor-pointer"
                 >
                   <Delete className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Backspace</span>
+                  <span>{translateUi(uiLocale, 'backspaceBtn')}</span>
                 </button>
                 <button
                   type="button"
@@ -405,7 +410,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                   }}
                   className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] cursor-pointer"
                 >
-                  Clear
+                  {translateUi(uiLocale, 'clearLog')}
                 </button>
                 <button
                   type="button"
@@ -413,7 +418,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                   className="ml-auto inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-[var(--accent-primary)] px-4 py-1.5 text-xs font-semibold text-[var(--accent-text-on)] cursor-pointer"
                 >
                   <Play className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Execute Braille Command</span>
+                  <span>{translateUi(uiLocale, 'executeBrailleCommand')}</span>
                 </button>
               </div>
 
@@ -423,7 +428,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                     htmlFor="braille-unicode-buffer"
                     className="block text-[11px] font-semibold text-[var(--text-muted)]"
                   >
-                    Unicode Braille Buffer (Paste or Chord)
+                    {translateUi(uiLocale, 'brailleBufferLabel')}
                   </label>
                   <input
                     id="braille-unicode-buffer"
@@ -436,13 +441,13 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                 </div>
                 <div>
                   <span className="block text-[11px] font-semibold text-[var(--text-muted)]">
-                    Decoded Grade-1 ASCII Preview
+                    {translateUi(uiLocale, 'decodedAsciiPreview')}
                   </span>
                   <div
                     role="status"
                     className="mt-1 min-h-[38px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 py-2 font-mono text-xs text-[var(--text-primary)]"
                   >
-                    {decodedBraillePreview || '(empty buffer)'}
+                    {decodedBraillePreview || translateUi(uiLocale, 'emptyBuffer')}
                   </div>
                 </div>
               </div>
@@ -455,10 +460,10 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)]">
                   <Hand className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
-                  <span>ASL Topic-Comment &amp; Protactile Zone Editor</span>
+                  <span>{translateUi(uiLocale, 'aslPtEditorTitle')}</span>
                 </span>
                 <span className="font-mono text-[11px] text-[var(--text-muted)]">
-                  Clause: {assembledAslPtCommand}
+                  {translateUi(uiLocale, 'clauseLabel')}: {assembledAslPtCommand}
                 </span>
               </div>
 
@@ -468,7 +473,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                     htmlFor="asl-topic-select"
                     className="block text-[11px] font-medium text-[var(--text-secondary)]"
                   >
-                    Topic (Structure)
+                    {translateUi(uiLocale, 'topicLabel')}
                   </label>
                   <select
                     id="asl-topic-select"
@@ -494,7 +499,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                     htmlFor="asl-action-select"
                     className="block text-[11px] font-medium text-[var(--text-secondary)]"
                   >
-                    Sign Action
+                    {translateUi(uiLocale, 'signActionLabel')}
                   </label>
                   <select
                     id="asl-action-select"
@@ -513,7 +518,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                     htmlFor="asl-target-id"
                     className="block text-[11px] font-medium text-[var(--text-secondary)]"
                   >
-                    Target ID
+                    {translateUi(uiLocale, 'targetIdLabel')}
                   </label>
                   <input
                     id="asl-target-id"
@@ -529,7 +534,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                     htmlFor="pt-zone-select"
                     className="block text-[11px] font-medium text-[var(--text-secondary)]"
                   >
-                    Protactile Spatial Zone
+                    {translateUi(uiLocale, 'ptZoneLabel')}
                   </label>
                   <select
                     id="pt-zone-select"
@@ -549,8 +554,8 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                     className="block text-[11px] font-medium text-[var(--text-secondary)]"
                   >
                     {builderTopic === 'ARC' && builderAction === 'CREATE'
-                      ? 'Target Node / Label'
-                      : 'Label'}
+                      ? translateUi(uiLocale, 'targetNodeOrLabel')
+                      : translateUi(uiLocale, 'labelField')}
                   </label>
                   <input
                     id="asl-label-input"
@@ -583,7 +588,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                         htmlFor="asl-status-select"
                         className="block text-[11px] font-medium text-[var(--text-secondary)]"
                       >
-                        State
+                        {translateUi(uiLocale, 'stateLabel')}
                       </label>
                       <select
                         id="asl-status-select"
@@ -593,9 +598,9 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                         }
                         className="mt-1 w-full min-h-[38px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs text-[var(--text-primary)]"
                       >
-                        <option value="active">active</option>
-                        <option value="maintenance">maintenance</option>
-                        <option value="isolated">isolated</option>
+                        <option value="active">{translateUi(uiLocale, 'statusActive')}</option>
+                        <option value="maintenance">{translateUi(uiLocale, 'statusMaintenance')}</option>
+                        <option value="isolated">{translateUi(uiLocale, 'statusIsolated')}</option>
                       </select>
                     </div>
                   )}
@@ -609,7 +614,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                   className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg bg-[var(--accent-primary)] px-4 py-1.5 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] cursor-pointer"
                 >
                   <Play className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Commit ASL / Protactile Edit</span>
+                  <span>{translateUi(uiLocale, 'commitAslPtEdit')}</span>
                 </button>
               </div>
             </div>

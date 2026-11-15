@@ -56,13 +56,13 @@ test('SOV international sign languages (JSL / DGS) place verb/action sign final 
   assert.equal(jslArc.boxes[2].semanticKey, 'connect');
   assert.match(jslArc.localizedGlossLine, /接続/);
 
-  const customKsl = formatSignWritingOutput(
+  const customFsl = formatSignWritingOutput(
     'graph',
     'success',
     'Executed batch on group of 3 nodes.',
-    'KSL'
+    'FSL'
   );
-  assert.equal(customKsl.language.code, 'KSL');
-  assert.match(customKsl.localizedGlossLine, /\[KSL\]/);
-  assert.ok(customKsl.fsw.includes('M535x540'));
+  assert.equal(customFsl.language.code, 'FSL');
+  assert.match(customFsl.localizedGlossLine, /\[FSL\]/);
+  assert.ok(customFsl.fsw.includes('M535x540'));
 });

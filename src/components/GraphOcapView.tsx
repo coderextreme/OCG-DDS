@@ -18,7 +18,11 @@ import {
   assignShardByConsistentHash,
   describeGraphNodeAccessibility,
 } from '../core/accessibilityOutput';
-import { translateUi, type SupportedUiLocale } from '../core/i18n';
+import {
+  formatUi,
+  translateUi,
+  type SupportedUiLocale,
+} from '../core/i18n';
 import {
   executeGraphBatch,
   isCapabilityActive,
@@ -634,7 +638,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               htmlFor="active-cap-select"
               className="block text-xs font-semibold text-[var(--text-secondary)]"
             >
-              Active Capability Token
+              {translateUi(uiLocale, 'activeCapTokenLabel')}
             </label>
             <select
               id="active-cap-select"
@@ -667,7 +671,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
             className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] whitespace-nowrap cursor-pointer"
           >
             <KeyRound className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
-            <span>Delegate / Revoke</span>
+            <span>{translateUi(uiLocale, 'delegateRevokeBtn')}</span>
           </button>
 
           <div
@@ -684,8 +688,8 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
             )}
             <span>
               {activeCapValid
-                ? `Rights: ${activeCap?.rights.join(', ')}`
-                : 'Token Revoked'}
+                ? `${translateUi(uiLocale, 'rightsPrefix')}: ${activeCap?.rights.join(', ')}`
+                : translateUi(uiLocale, 'tokenRevokedLabel')}
             </span>
           </div>
         </div>
@@ -721,14 +725,14 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                Sharded Distributed Graph &amp; OCap Guardrails
+                {translateUi(uiLocale, 'shardedGraphTitle')}
               </h2>
               <p className="text-xs text-[var(--text-muted)]">
-                Each column represents a physical shard. Nodes show active capability access ({outputChannelLabel} output active).
+                {translateUi(uiLocale, 'shardedGraphSubtitle')} ({outputChannelLabel} output active).
               </p>
             </div>
             <span className="font-mono text-xs tabular-nums text-[var(--text-secondary)]">
-              {nodes.length} nodes · {arcs.length} arcs
+              {formatUi(uiLocale, 'nodesArcsCount', { nodes: nodes.length, arcs: arcs.length })}
             </span>
           </div>
 
@@ -737,14 +741,14 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               role="alert"
               className="rounded-lg bg-[var(--bg-subtle)] p-6 text-sm text-[var(--text-secondary)]"
             >
-              Active token lacks &quot;read&quot; authority or has been revoked. Switch to a valid capability token to inspect distributed graph topology.
+              {translateUi(uiLocale, 'noReadRightAlert')}
             </div>
           ) : (
             <>
               <div
                 tabIndex={0}
                 role="region"
-                aria-label="Sharded distributed graph diagram. Use Left and Right arrow keys to inspect nodes and their OCap guardrails."
+                aria-label={translateUi(uiLocale, 'svgRegionAria')}
                 onKeyDown={handleSvgKeyDown}
                 className="overflow-x-auto rounded-lg bg-[var(--bg-subtle)] p-3"
               >
@@ -955,7 +959,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               {/* Linear Deaf-Blind / Braille / Protactile Adjacency Summary */}
               <div className="border-t border-[var(--border-hairline)] pt-3">
                 <h3 className="text-xs font-semibold text-[var(--text-muted)]">
-                  Linear Shard, OCap &amp; Adjacency Summary
+                  {translateUi(uiLocale, 'linearSummaryTitle')}
                 </h3>
                 <ul className="mt-2 space-y-1 font-mono text-xs text-[var(--text-secondary)]">
                   {queryResult.nodes.map((n) => {
@@ -971,7 +975,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                         ? outgoing
                             .map((a) => `${a.id}:${a.label}(w=${a.weight})->${a.target}`)
                             .join(', ')
-                        : 'no outgoing arcs';
+                        : translateUi(uiLocale, 'noOutgoingArcs');
                     return (
                       <li key={n.id}>
                         {n.id} [{n.shard}|{n.status}|OCap:{desc.guardLabel}] :: {outText}
@@ -989,10 +993,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
           <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 space-y-4">
             <div>
               <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                Group Operations ({selectedNodeIds.length} Nodes · {selectedArcIds.length} Arcs)
+                {translateUi(uiLocale, 'groupOpsTitle')} ({selectedNodeIds.length} Nodes · {selectedArcIds.length} Arcs)
               </h2>
               <p className="text-xs text-[var(--text-muted)]">
-                Update status, migrate shard, or delete the chosen group immediately or queue into an atomic batch.
+                {translateUi(uiLocale, 'groupOpsSubtitle')}
               </p>
             </div>
 
@@ -1002,7 +1006,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                   htmlFor="group-status-select"
                   className="block text-xs font-medium text-[var(--text-secondary)]"
                 >
-                  New Status
+                  {translateUi(uiLocale, 'newStatusLabel')}
                 </label>
                 <select
                   id="group-status-select"
@@ -1020,7 +1024,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                   htmlFor="group-shard-select"
                   className="block text-xs font-medium text-[var(--text-secondary)]"
                 >
-                  Target Shard
+                  {translateUi(uiLocale, 'targetShardLabel')}
                 </label>
                 <select
                   id="group-shard-select"
@@ -1038,7 +1042,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                   htmlFor="group-weight-input"
                   className="block text-xs font-medium text-[var(--text-secondary)]"
                 >
-                  Arc Weight
+                  {translateUi(uiLocale, 'arcWeightLabel')}
                 </label>
                 <input
                   id="group-weight-input"
@@ -1054,14 +1058,14 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                   htmlFor="group-tag-input"
                   className="block text-xs font-medium text-[var(--text-secondary)]"
                 >
-                  Group Tag (Optional)
+                  {translateUi(uiLocale, 'groupTagOptionalLabel')}
                 </label>
                 <input
                   id="group-tag-input"
                   type="text"
                   value={groupTagPatch}
                   onChange={(e) => setGroupTagPatch(e.target.value)}
-                  placeholder="keep existing"
+                  placeholder={translateUi(uiLocale, 'keepExistingPlaceholder')}
                   className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 font-mono text-sm text-[var(--text-primary)]"
                 />
               </div>
@@ -1073,28 +1077,28 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 onClick={() => handleGroupStatusUpdate(false)}
                 className="min-h-[40px] flex-1 rounded-lg bg-[var(--accent-primary)] px-3.5 py-2 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] whitespace-nowrap cursor-pointer"
               >
-                Update Group Now
+                {translateUi(uiLocale, 'updateGroupNow')}
               </button>
               <button
                 type="button"
                 onClick={() => handleGroupStatusUpdate(true)}
                 className="min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-3.5 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] whitespace-nowrap cursor-pointer"
               >
-                Queue Update
+                {translateUi(uiLocale, 'queueUpdate')}
               </button>
               <button
                 type="button"
                 onClick={() => handleGroupDelete(false)}
                 className="min-h-[40px] rounded-lg border border-red-500/50 px-3.5 py-2 text-xs font-semibold text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 whitespace-nowrap cursor-pointer"
               >
-                Delete Group
+                {translateUi(uiLocale, 'deleteGroup')}
               </button>
               <button
                 type="button"
                 onClick={() => handleGroupDelete(true)}
                 className="min-h-[40px] rounded-lg border border-[var(--border-hairline)] px-3.5 py-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] whitespace-nowrap cursor-pointer"
               >
-                Queue Delete
+                {translateUi(uiLocale, 'queueDelete')}
               </button>
             </div>
           </div>
@@ -1105,7 +1109,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               <div className="flex items-center gap-2">
                 <Layers className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                 <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                  Batch Queue ({batchQueue.length})
+                  {translateUi(uiLocale, 'batchQueueTitle')} ({batchQueue.length})
                 </h2>
               </div>
               <button
@@ -1114,13 +1118,13 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 disabled={batchQueue.length === 0}
                 className="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
               >
-                Clear Queue
+                {translateUi(uiLocale, 'clearQueue')}
               </button>
             </div>
 
             {batchQueue.length === 0 ? (
               <p className="rounded-lg border border-dashed border-[var(--border-hairline)] p-4 text-xs text-[var(--text-muted)]">
-                Queue is empty. Use &quot;Queue Node&quot;, &quot;Queue Arc&quot;, or &quot;Queue Update/Delete&quot; to compose an atomic multi-operation batch.
+                {translateUi(uiLocale, 'emptyQueueText')}
               </p>
             ) : (
               <ol className="space-y-1.5 text-xs font-mono">
@@ -1154,7 +1158,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               className="inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-sm font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
             >
               <Play className="h-4 w-4" aria-hidden="true" />
-              <span>Execute Batch Atomically</span>
+              <span>{translateUi(uiLocale, 'executeBatchAtomically')}</span>
             </button>
           </div>
         </div>
@@ -1165,7 +1169,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
         <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              Create Node
+              {translateUi(uiLocale, 'createNodeTitle')}
             </h2>
             <label className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)] cursor-pointer">
               <input
@@ -1174,7 +1178,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 onChange={(e) => setAutoAssignShard(e.target.checked)}
                 className="h-3.5 w-3.5 accent-[var(--accent-primary)]"
               />
-              <span>Auto-Shard by Hash ({effectiveNewNodeShard})</span>
+              <span>{translateUi(uiLocale, 'autoShardByHash')} ({effectiveNewNodeShard})</span>
             </label>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1183,7 +1187,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="create-node-id"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Node ID
+                {translateUi(uiLocale, 'nodeIdLabel')}
               </label>
               <input
                 id="create-node-id"
@@ -1199,7 +1203,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="create-node-label"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Node Label
+                {translateUi(uiLocale, 'nodeLabelField')}
               </label>
               <input
                 id="create-node-label"
@@ -1215,7 +1219,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="create-node-shard"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Shard {autoAssignShard ? '(Hash-Derived)' : '(Manual)'}
+                {translateUi(uiLocale, 'shardLabel')} {autoAssignShard ? `(${translateUi(uiLocale, 'shardHashDerived')})` : `(${translateUi(uiLocale, 'shardManual')})`}
               </label>
               <select
                 id="create-node-shard"
@@ -1234,7 +1238,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="create-node-group"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Group Tag
+                {translateUi(uiLocale, 'groupTagLabel')}
               </label>
               <input
                 id="create-node-group"
@@ -1252,21 +1256,21 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Create Node</span>
+              <span>{translateUi(uiLocale, 'createNodeBtn')}</span>
             </button>
             <button
               type="button"
               onClick={() => handleCreateNode(true)}
               className="min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
             >
-              Queue Node
+              {translateUi(uiLocale, 'queueNodeBtn')}
             </button>
           </div>
         </div>
 
         <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 space-y-4">
           <h2 className="text-base font-semibold text-[var(--text-primary)]">
-            Create Directed Arc
+            {translateUi(uiLocale, 'createArcTitle')}
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
@@ -1274,7 +1278,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="create-arc-id"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Arc ID
+                {translateUi(uiLocale, 'arcIdLabel')}
               </label>
               <input
                 id="create-arc-id"
@@ -1290,7 +1294,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="create-arc-source"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Source Node
+                {translateUi(uiLocale, 'sourceNodeLabel')}
               </label>
               <select
                 id="create-arc-source"
@@ -1310,7 +1314,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="create-arc-target"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Target Node
+                {translateUi(uiLocale, 'targetNodeLabel')}
               </label>
               <select
                 id="create-arc-target"
@@ -1330,7 +1334,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="create-arc-label"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Arc Label
+                {translateUi(uiLocale, 'arcLabelField')}
               </label>
               <input
                 id="create-arc-label"
@@ -1346,7 +1350,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="create-arc-weight"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Weight
+                {translateUi(uiLocale, 'weightLabel')}
               </label>
               <input
                 id="create-arc-weight"
@@ -1362,7 +1366,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="create-arc-group"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Group Tag
+                {translateUi(uiLocale, 'groupTagLabel')}
               </label>
               <input
                 id="create-arc-group"
@@ -1380,14 +1384,14 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Create Arc</span>
+              <span>{translateUi(uiLocale, 'createArcBtn')}</span>
             </button>
             <button
               type="button"
               onClick={() => handleCreateArc(true)}
               className="min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
             >
-              Queue Arc
+              {translateUi(uiLocale, 'queueArcBtn')}
             </button>
           </div>
         </div>
@@ -1401,10 +1405,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              Edit Single Node
+              {translateUi(uiLocale, 'editSingleNodeTitle')}
             </h2>
             <span className="font-mono text-xs text-[var(--text-muted)]">
-              OCap-enforced update
+              {translateUi(uiLocale, 'ocapEnforcedUpdate')}
             </span>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1413,7 +1417,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="edit-node-id"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Node to Edit
+                {translateUi(uiLocale, 'nodeToEditLabel')}
               </label>
               <select
                 id="edit-node-id"
@@ -1436,7 +1440,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="edit-node-label"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Updated Label
+                {translateUi(uiLocale, 'updatedLabelField')}
               </label>
               <input
                 ref={editNodeLabelRef}
@@ -1452,7 +1456,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="edit-node-shard"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Shard Zone
+                {translateUi(uiLocale, 'shardZoneLabel')}
               </label>
               <select
                 id="edit-node-shard"
@@ -1470,7 +1474,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="edit-node-status"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Status
+                {translateUi(uiLocale, 'stateLabel')}
               </label>
               <select
                 id="edit-node-status"
@@ -1478,9 +1482,9 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 onChange={(e) => setEditNodeStatus(e.target.value as GraphEntityStatus)}
                 className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
               >
-                <option value="active">active</option>
-                <option value="maintenance">maintenance</option>
-                <option value="isolated">isolated</option>
+                <option value="active">{translateUi(uiLocale, 'statusActive')}</option>
+                <option value="maintenance">{translateUi(uiLocale, 'statusMaintenance')}</option>
+                <option value="isolated">{translateUi(uiLocale, 'statusIsolated')}</option>
               </select>
             </div>
             <div className="sm:col-span-2">
@@ -1488,7 +1492,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="edit-node-group"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Group Tag
+                {translateUi(uiLocale, 'groupTagLabel')}
               </label>
               <input
                 id="edit-node-group"
@@ -1506,14 +1510,14 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] cursor-pointer"
             >
               <Edit3 className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Save Node Changes</span>
+              <span>{translateUi(uiLocale, 'saveNodeChanges')}</span>
             </button>
             <button
               type="button"
               onClick={() => handleSaveSingleNodeEdit(true)}
               className="min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
             >
-              Queue Node Edit
+              {translateUi(uiLocale, 'queueNodeEdit')}
             </button>
           </div>
         </div>
@@ -1524,10 +1528,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              Edit Directed Arc
+              {translateUi(uiLocale, 'editDirectedArcTitle')}
             </h2>
             <span className="font-mono text-xs text-[var(--text-muted)]">
-              Re-wire endpoints &amp; weight
+              {translateUi(uiLocale, 'rewireEndpoints')}
             </span>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -1536,7 +1540,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="edit-arc-id"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Arc to Edit
+                {translateUi(uiLocale, 'arcToEditLabel')}
               </label>
               <select
                 id="edit-arc-id"
@@ -1559,7 +1563,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="edit-arc-source"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Source Node
+                {translateUi(uiLocale, 'sourceNodeLabel')}
               </label>
               <select
                 id="edit-arc-source"
@@ -1579,7 +1583,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="edit-arc-target"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Target Node
+                {translateUi(uiLocale, 'targetNodeLabel')}
               </label>
               <select
                 id="edit-arc-target"
@@ -1599,7 +1603,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="edit-arc-label"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Updated Label
+                {translateUi(uiLocale, 'updatedLabelField')}
               </label>
               <input
                 ref={editArcLabelRef}
@@ -1615,7 +1619,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="edit-arc-weight"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Weight
+                {translateUi(uiLocale, 'weightLabel')}
               </label>
               <input
                 id="edit-arc-weight"
@@ -1631,7 +1635,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="edit-arc-status"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Status
+                {translateUi(uiLocale, 'stateLabel')}
               </label>
               <select
                 id="edit-arc-status"
@@ -1639,9 +1643,9 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 onChange={(e) => setEditArcStatus(e.target.value as GraphEntityStatus)}
                 className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
               >
-                <option value="active">active</option>
-                <option value="maintenance">maintenance</option>
-                <option value="isolated">isolated</option>
+                <option value="active">{translateUi(uiLocale, 'statusActive')}</option>
+                <option value="maintenance">{translateUi(uiLocale, 'statusMaintenance')}</option>
+                <option value="isolated">{translateUi(uiLocale, 'statusIsolated')}</option>
               </select>
             </div>
             <div className="sm:col-span-3">
@@ -1649,7 +1653,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 htmlFor="edit-arc-group"
                 className="block text-xs font-medium text-[var(--text-secondary)]"
               >
-                Group Tag
+                {translateUi(uiLocale, 'groupTagLabel')}
               </label>
               <input
                 id="edit-arc-group"
@@ -1667,14 +1671,14 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] cursor-pointer"
             >
               <Edit3 className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Save Arc Changes</span>
+              <span>{translateUi(uiLocale, 'saveArcChanges')}</span>
             </button>
             <button
               type="button"
               onClick={() => handleSaveSingleArcEdit(true)}
               className="min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
             >
-              Queue Arc Edit
+              {translateUi(uiLocale, 'queueArcEdit')}
             </button>
           </div>
         </div>
@@ -1685,14 +1689,14 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              Query, Find, and Group-Select Nodes and Arcs
+              {translateUi(uiLocale, 'queryTitle')}
             </h2>
             <p className="text-xs text-[var(--text-muted)]">
-              Filter by identifier, shard, status, arc weight, or BFS reachability, then select matching entities as a group.
+              {translateUi(uiLocale, 'querySubtitle')}
             </p>
           </div>
           <span className="font-mono text-xs tabular-nums text-[var(--text-secondary)]">
-            Matched: {queryResult.nodes.length}/{nodes.length} nodes · {queryResult.arcs.length}/{arcs.length} arcs
+            {formatUi(uiLocale, 'matchedCount', queryResult.nodes.length, nodes.length, queryResult.arcs.length, arcs.length)}
           </span>
         </div>
 
@@ -1702,7 +1706,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               htmlFor="graph-query-text"
               className="block text-xs font-medium text-[var(--text-secondary)]"
             >
-              Find by ID, Label, or Tag
+              {translateUi(uiLocale, 'findByIdLabelTag')}
             </label>
             <div className="relative mt-1">
               <Search
@@ -1725,7 +1729,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               htmlFor="graph-query-shard"
               className="block text-xs font-medium text-[var(--text-secondary)]"
             >
-              Shard
+              {translateUi(uiLocale, 'shardLabel')}
             </label>
             <select
               id="graph-query-shard"
@@ -1738,7 +1742,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               }
               className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
             >
-              <option value="all">All Shards</option>
+              <option value="all">{translateUi(uiLocale, 'allShards')}</option>
               <option value="Shard-A">Shard-A</option>
               <option value="Shard-B">Shard-B</option>
               <option value="Shard-C">Shard-C</option>
@@ -1750,7 +1754,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               htmlFor="graph-query-status"
               className="block text-xs font-medium text-[var(--text-secondary)]"
             >
-              Status
+              {translateUi(uiLocale, 'stateLabel')}
             </label>
             <select
               id="graph-query-status"
@@ -1763,10 +1767,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               }
               className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
             >
-              <option value="all">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="maintenance">Maintenance</option>
-              <option value="isolated">Isolated</option>
+              <option value="all">{translateUi(uiLocale, 'allStatuses')}</option>
+              <option value="active">{translateUi(uiLocale, 'statusActive')}</option>
+              <option value="maintenance">{translateUi(uiLocale, 'statusMaintenance')}</option>
+              <option value="isolated">{translateUi(uiLocale, 'statusIsolated')}</option>
             </select>
           </div>
 
@@ -1775,7 +1779,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               htmlFor="graph-query-weight"
               className="block text-xs font-medium text-[var(--text-secondary)]"
             >
-              Min Arc Weight
+              {translateUi(uiLocale, 'minArcWeight')}
             </label>
             <input
               id="graph-query-weight"
@@ -1788,7 +1792,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                   minWeight: e.target.value === '' ? null : Number(e.target.value),
                 }))
               }
-              placeholder="Any"
+              placeholder={translateUi(uiLocale, 'anyPlaceholder')}
               className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 font-mono text-sm text-[var(--text-primary)]"
             />
           </div>
@@ -1798,7 +1802,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               htmlFor="graph-query-reach"
               className="block text-xs font-medium text-[var(--text-secondary)]"
             >
-              Reachable From
+              {translateUi(uiLocale, 'reachableFrom')}
             </label>
             <select
               id="graph-query-reach"
@@ -1808,7 +1812,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
               }
               className="mt-1 w-full min-h-[40px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
             >
-              <option value="">Any Node</option>
+              <option value="">{translateUi(uiLocale, 'anyNode')}</option>
               {nodes.map((n) => (
                 <option key={n.id} value={n.id}>
                   {n.id} · {n.label}
@@ -1828,7 +1832,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
             }}
             className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
           >
-            Select Matched Nodes ({queryResult.nodes.length})
+            {formatUi(uiLocale, 'selectMatchedNodes', queryResult.nodes.length)}
           </button>
           <button
             type="button"
@@ -1839,7 +1843,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
             }}
             className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
           >
-            Select Matched Arcs ({queryResult.arcs.length})
+            {formatUi(uiLocale, 'selectMatchedArcs', queryResult.arcs.length)}
           </button>
           <button
             type="button"
@@ -1858,7 +1862,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
             }}
             className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
           >
-            Select Incident Arcs
+            {translateUi(uiLocale, 'selectIncidentArcs')}
           </button>
           <button
             type="button"
@@ -1869,10 +1873,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
             }}
             className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
           >
-            Clear Group
+            {translateUi(uiLocale, 'clearGroup')}
           </button>
           <span className="ml-auto font-mono text-xs text-[var(--text-muted)]">
-            Selected Group: {selectedNodeIds.length} nodes · {selectedArcIds.length} arcs
+            {formatUi(uiLocale, 'selectedGroupCount', selectedNodeIds.length, selectedArcIds.length)}
           </span>
         </div>
       </div>
@@ -1882,17 +1886,17 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5">
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              Nodes Directory ({queryResult.nodes.length})
+              {formatUi(uiLocale, 'nodesDirectoryTitle', queryResult.nodes.length)}
             </h2>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full border-collapse text-left text-xs">
                 <thead>
                   <tr className="border-b border-[var(--border-hairline)] text-[var(--text-muted)]">
-                    <th scope="col" className="py-2 pr-2">Group</th>
-                    <th scope="col" className="py-2 pr-2">Node</th>
-                    <th scope="col" className="py-2 pr-2">Shard · Status</th>
-                    <th scope="col" className="py-2 pr-2">OCap Guard</th>
-                    <th scope="col" className="py-2 text-right">Action</th>
+                    <th scope="col" className="py-2 pr-2">{translateUi(uiLocale, 'colGroup')}</th>
+                    <th scope="col" className="py-2 pr-2">{translateUi(uiLocale, 'colNode')}</th>
+                    <th scope="col" className="py-2 pr-2">{translateUi(uiLocale, 'colShardStatus')}</th>
+                    <th scope="col" className="py-2 pr-2">{translateUi(uiLocale, 'colOcapGuard')}</th>
+                    <th scope="col" className="py-2 text-right">{translateUi(uiLocale, 'colAction')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border-hairline)]">
@@ -1962,7 +1966,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                             className="inline-flex min-h-[32px] items-center gap-1 rounded border border-[var(--border-hairline)] px-2 py-1 text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
                           >
                             <Edit3 className="h-3 w-3" aria-hidden="true" />
-                            <span>Edit</span>
+                            <span>{translateUi(uiLocale, 'editBtn')}</span>
                           </button>
                           <button
                             type="button"
@@ -1976,7 +1980,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                             className="inline-flex min-h-[32px] items-center gap-1 rounded border border-[var(--border-hairline)] px-2 py-1 text-[11px] font-medium text-[var(--text-secondary)] hover:text-red-600 cursor-pointer"
                           >
                             <Trash2 className="h-3 w-3" aria-hidden="true" />
-                            <span>Delete</span>
+                            <span>{translateUi(uiLocale, 'deleteBtn')}</span>
                           </button>
                         </td>
                       </tr>
@@ -1989,18 +1993,18 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
 
           <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5">
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              Arcs Directory ({queryResult.arcs.length})
+              {formatUi(uiLocale, 'arcsDirectoryTitle', queryResult.arcs.length)}
             </h2>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full border-collapse text-left text-xs">
                 <thead>
                   <tr className="border-b border-[var(--border-hairline)] text-[var(--text-muted)]">
-                    <th scope="col" className="py-2 pr-2">Group</th>
-                    <th scope="col" className="py-2 pr-2">ID</th>
-                    <th scope="col" className="py-2 pr-2">Direction</th>
-                    <th scope="col" className="py-2 pr-2">Label / Status</th>
-                    <th scope="col" className="py-2 pr-2">Weight</th>
-                    <th scope="col" className="py-2 text-right">Action</th>
+                    <th scope="col" className="py-2 pr-2">{translateUi(uiLocale, 'colGroup')}</th>
+                    <th scope="col" className="py-2 pr-2">{translateUi(uiLocale, 'arcIdLabel')}</th>
+                    <th scope="col" className="py-2 pr-2">{translateUi(uiLocale, 'colDirection')}</th>
+                    <th scope="col" className="py-2 pr-2">{translateUi(uiLocale, 'colLabelStatus')}</th>
+                    <th scope="col" className="py-2 pr-2">{translateUi(uiLocale, 'colWeight')}</th>
+                    <th scope="col" className="py-2 text-right">{translateUi(uiLocale, 'colAction')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border-hairline)]">
@@ -2050,7 +2054,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                             className="inline-flex min-h-[32px] items-center gap-1 rounded border border-[var(--border-hairline)] px-2 py-1 text-[11px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] cursor-pointer"
                           >
                             <Edit3 className="h-3 w-3" aria-hidden="true" />
-                            <span>Edit</span>
+                            <span>{translateUi(uiLocale, 'editBtn')}</span>
                           </button>
                           <button
                             type="button"
@@ -2064,7 +2068,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                             className="inline-flex min-h-[32px] items-center gap-1 rounded border border-[var(--border-hairline)] px-2 py-1 text-[11px] font-medium text-[var(--text-secondary)] hover:text-red-600 cursor-pointer"
                           >
                             <Trash2 className="h-3 w-3" aria-hidden="true" />
-                            <span>Delete</span>
+                            <span>{translateUi(uiLocale, 'deleteBtn')}</span>
                           </button>
                         </td>
                       </tr>

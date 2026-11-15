@@ -365,16 +365,26 @@ export function formatLocalizedTime(
 export function formatUi(
   localeCode: SupportedUiLocale | string,
   key: UiMessageKey,
-  params?: Record<string, string | number>
+  ...args: (Record<string, string | number> | string | number)[]
 ): string {
   let template = translateUi(localeCode, key);
-  if (!params) return template;
-  for (const [paramKey, paramValue] of Object.entries(params)) {
-    const formatted =
-      typeof paramValue === 'number'
-        ? formatLocalizedNumber(localeCode, paramValue)
-        : String(paramValue);
-    template = template.replaceAll(`{${paramKey}}`, formatted);
+  if (args.length === 0) return template;
+  if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null) {
+    for (const [paramKey, paramValue] of Object.entries(args[0])) {
+      const formatted =
+        typeof paramValue === 'number'
+          ? formatLocalizedNumber(localeCode, paramValue)
+          : String(paramValue);
+      template = template.replaceAll(`{${paramKey}}`, formatted);
+    }
+  } else {
+    args.forEach((val, index) => {
+      const formatted =
+        typeof val === 'number'
+          ? formatLocalizedNumber(localeCode, val)
+          : String(val);
+      template = template.replaceAll(`{${index}}`, formatted);
+    });
   }
   return template;
 }

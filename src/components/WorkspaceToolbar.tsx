@@ -13,6 +13,7 @@ import {
   translateUi,
   UI_LOCALES,
   type SupportedUiLocale,
+  type UiMessageKey,
 } from '../core/i18n';
 import type { AccessibleOutputChannel, ThemeMode } from '../types/system';
 import { ACCESSIBILITY_LANGUAGE_OPTIONS, accessibilityProfileLabels } from '../core/accessibilityLanguages';
@@ -34,23 +35,23 @@ interface WorkspaceToolbarProps {
 
 const THEME_OPTIONS: Array<{
   id: ThemeMode;
-  label: string;
+  key: UiMessageKey;
   Icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
 }> = [
-  { id: 'light', label: 'Light', Icon: Sun },
-  { id: 'dark', label: 'Dark', Icon: Moon },
-  { id: 'high-contrast', label: 'High Contrast', Icon: Contrast },
+  { id: 'light', key: 'themeLight', Icon: Sun },
+  { id: 'dark', key: 'themeDark', Icon: Moon },
+  { id: 'high-contrast', key: 'themeHighContrast', Icon: Contrast },
 ];
 
 const OUTPUT_OPTIONS: Array<{
   id: AccessibleOutputChannel;
-  label: string;
+  key: UiMessageKey;
 }> = [
-  { id: 'standard', label: 'Standard' },
-  { id: 'braille', label: 'Braille' },
-  { id: 'protactile', label: 'Protactile' },
-  { id: 'asl', label: 'ASL' },
-  { id: 'signwriting', label: 'SignWriting' },
+  { id: 'standard', key: 'channelStandard' },
+  { id: 'braille', key: 'channelBraille' },
+  { id: 'protactile', key: 'channelProtactile' },
+  { id: 'asl', key: 'channelAsl' },
+  { id: 'signwriting', key: 'channelSignWriting' },
 ];
 
 export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
@@ -85,7 +86,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
               aria-labelledby="theme-group-label"
               className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-0.5"
             >
-              {THEME_OPTIONS.map(({ id, label, Icon }) => {
+              {THEME_OPTIONS.map(({ id, key, Icon }) => {
                 const selected = theme === id;
                 return (
                   <button
@@ -100,7 +101,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
                     }`}
                   >
                     <Icon className="h-3.5 w-3.5" aria-hidden={true} />
-                    <span>{label}</span>
+                    <span>{translateUi(uiLocale, key)}</span>
                   </button>
                 );
               })}
@@ -117,7 +118,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
             </label>
             <select
               id="toolbar-ui-locale"
-              aria-label="Interface Language"
+              aria-label={translateUi(uiLocale, 'interfaceLanguageAria')}
               value={uiLocale}
               onChange={(e) =>
                 onChangeUiLocale(e.target.value as SupportedUiLocale)
@@ -196,7 +197,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
               aria-labelledby="output-channel-label"
               className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-0.5"
             >
-              {OUTPUT_OPTIONS.map(({ id, label }) => {
+              {OUTPUT_OPTIONS.map(({ id, key }) => {
                 const selected = outputChannel === id;
                 return (
                   <button
@@ -210,7 +211,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
                         : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                     }`}
                   >
-                    {label}
+                    {translateUi(uiLocale, key)}
                   </button>
                 );
               })}

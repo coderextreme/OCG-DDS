@@ -13,7 +13,13 @@ import {
   buildAccessibleEventBundle,
   type AccessibleOutputChannel,
 } from '../core/accessibilityOutput';
-import { translateUi, type SupportedUiLocale } from '../core/i18n';
+import {
+  formatLocalizedTime,
+  formatUi,
+  translateUi,
+  type SupportedUiLocale,
+  type UiMessageKey,
+} from '../core/i18n';
 import {
   SIGN_LANGUAGE_PRESETS,
   type SignWritingDirection,
@@ -34,23 +40,22 @@ interface LiveAnnouncerPanelProps {
   onClearEvents: () => void;
 }
 
-const MODULE_LABELS: Record<SystemModuleId, string> = {
-  graph: 'Graph Workspace',
-  sync: 'Sync & Quorum',
-  sharding: 'Hash Sharding',
-  capabilities: 'Capabilities',
+const MODULE_KEYS: Record<SystemModuleId, UiMessageKey> = {
+  graph: 'navGraph',
+  sync: 'navSync',
+  sharding: 'navSharding',
+  capabilities: 'navCapabilities',
 };
 
-const CHANNEL_LABELS: Array<{
+const CHANNEL_OPTIONS: Array<{
   id: AccessibleOutputChannel;
-  label: string;
-  ariaLabel: string;
+  key: UiMessageKey;
 }> = [
-  { id: 'standard', label: 'Std', ariaLabel: 'Inspect Standard output' },
-  { id: 'braille', label: 'Braille', ariaLabel: 'Inspect Braille output' },
-  { id: 'protactile', label: 'PT', ariaLabel: 'Inspect Protactile output' },
-  { id: 'asl', label: 'ASL', ariaLabel: 'Inspect ASL output' },
-  { id: 'signwriting', label: 'SignW', ariaLabel: 'Inspect SignWriting output' },
+  { id: 'standard', key: 'pillStd' },
+  { id: 'braille', key: 'pillBraille' },
+  { id: 'protactile', key: 'pillPt' },
+  { id: 'asl', key: 'pillAsl' },
+  { id: 'signwriting', key: 'pillSignW' },
 ];
 
 export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
@@ -133,17 +138,17 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
       typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
     if (supported) {
       navigator.vibrate(pattern);
-      setHapticStatus(`Dispatched vibration [${pattern.join('ms, ')}ms]`);
+      setHapticStatus(`${translateUi(uiLocale, 'hapticDispatched')} [${pattern.join('ms, ')}ms]`);
     } else {
       setHapticStatus(
-        `Visual tactile cadence ready: [${pattern.join('ms, ')}ms] (hardware vibrator unavailable in browser)`
+        `${translateUi(uiLocale, 'hapticVisualReady')}: [${pattern.join('ms, ')}ms]`
       );
     }
   };
 
   return (
     <aside
-      aria-label="Multi-Modal Accessibility Announcer, Braille, Protactile, ASL, and Audit Log"
+      aria-label={translateUi(uiLocale, 'announcerAsideAria')}
       className="flex flex-col rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
     >
       <div className="flex items-center justify-between gap-3 border-b border-[var(--border-hairline)] pb-3">
@@ -159,7 +164,7 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
           type="button"
           onClick={onClearEvents}
           disabled={events.length === 0}
-          aria-label="Clear audit log entries"
+          aria-label={translateUi(uiLocale, 'clearLogAria')}
           className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer disabled:cursor-not-allowed"
         >
           <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -170,10 +175,10 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
       {/* Quick Channel Switcher */}
       <div
         role="group"
-        aria-label="Inspect accessible output format"
+        aria-label={translateUi(uiLocale, 'inspectOutputAria')}
         className="mt-3 grid grid-cols-5 gap-1 rounded-lg bg-[var(--bg-subtle)] p-1"
       >
-        {CHANNEL_LABELS.map(({ id, label, ariaLabel }) => {
+        {CHANNEL_OPTIONS.map(({ id, key }) => {
           const active = outputChannel === id;
           return (
             <button
@@ -181,14 +186,14 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
               type="button"
               onClick={() => onChangeOutputChannel(id)}
               aria-pressed={active}
-              aria-label={ariaLabel}
+              aria-label={translateUi(uiLocale, key)}
               className={`min-h-[32px] rounded-md px-1 py-1 text-[11px] font-medium whitespace-nowrap cursor-pointer ${
                 active
                   ? 'bg-[var(--accent-primary)] text-[var(--accent-text-on)] font-semibold'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
-              {label}
+              {translateUi(uiLocale, key)}
             </button>
           );
         })}
@@ -203,7 +208,7 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
         className="mt-3 rounded-lg bg-[var(--bg-subtle)] p-3.5"
       >
         <p className="text-xs font-semibold text-[var(--text-muted)]">
-          Latest Event ({outputChannel.toUpperCase()})
+          {translateUi(uiLocale, 'latestEventLabel')} ({outputChannel.toUpperCase()})
         </p>
         <p className="mt-1 break-words [overflow-wrap:anywhere] text-sm font-medium leading-snug text-[var(--text-primary)]">
           {liveAnnouncementText}
@@ -218,7 +223,7 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
         >
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-              40-Cell Braille Display Buffer
+              {translateUi(uiLocale, 'brailleBufferTitle')}
             </h3>
             <button
               type="button"
@@ -226,11 +231,11 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
               aria-pressed={showUnicodeDots}
               className="rounded border border-[var(--border-hairline)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
             >
-              {showUnicodeDots ? 'Show ASCII' : 'Show Dots'}
+              {showUnicodeDots ? translateUi(uiLocale, 'showAscii') : translateUi(uiLocale, 'showDots')}
             </button>
           </div>
           <ol
-            aria-label="40-cell Braille output lines"
+            aria-label={translateUi(uiLocale, 'brailleLinesAria')}
             className="mt-2 space-y-1 rounded-lg bg-[var(--bg-subtle)] p-3 font-mono text-xs text-[var(--text-primary)]"
           >
             {(showUnicodeDots ? bundle.brailleDots : bundle.brailleLines).map(
@@ -254,7 +259,7 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
           <div className="flex items-center justify-between gap-2">
             <h3 className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)]">
               <Hand className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
-              <span>Protactile Language (PT) Cue</span>
+              <span>{translateUi(uiLocale, 'ptCueTitle')}</span>
             </h3>
             <button
               type="button"
@@ -262,38 +267,38 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
               className="inline-flex min-h-[28px] items-center gap-1 rounded border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-2 py-0.5 text-[11px] font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
             >
               <Vibrate className="h-3 w-3" aria-hidden="true" />
-              <span>Pulse Haptics</span>
+              <span>{translateUi(uiLocale, 'pulseHaptics')}</span>
             </button>
           </div>
 
           <dl className="space-y-2 rounded-lg bg-[var(--bg-subtle)] p-3 text-xs">
             <div>
-              <dt className="font-semibold text-[var(--text-muted)]">Contact Space</dt>
+              <dt className="font-semibold text-[var(--text-muted)]">{translateUi(uiLocale, 'ptContactSpace')}</dt>
               <dd className="mt-0.5 text-[var(--text-primary)]">
                 {bundle.protactile.contactSetup}
               </dd>
             </div>
             <div>
-              <dt className="font-semibold text-[var(--text-muted)]">Spatial Zone Anchor</dt>
+              <dt className="font-semibold text-[var(--text-muted)]">{translateUi(uiLocale, 'ptSpatialZoneAnchor')}</dt>
               <dd className="mt-0.5 font-semibold text-[var(--accent-primary)]">
                 {bundle.protactile.spatialZone}
               </dd>
             </div>
             <div>
-              <dt className="font-semibold text-[var(--text-muted)]">Topographic Trace</dt>
+              <dt className="font-semibold text-[var(--text-muted)]">{translateUi(uiLocale, 'ptTopographicTrace')}</dt>
               <dd className="mt-0.5 text-[var(--text-primary)]">
                 {bundle.protactile.topographicTrace}
               </dd>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-hairline)] pt-2">
               <div>
-                <dt className="font-semibold text-[var(--text-muted)]">Backchannel</dt>
+                <dt className="font-semibold text-[var(--text-muted)]">{translateUi(uiLocale, 'ptBackchannel')}</dt>
                 <dd className="font-mono text-[11px] font-semibold text-[var(--text-primary)]">
                   {bundle.protactile.backchannel}
                 </dd>
               </div>
               <div className="text-right">
-                <dt className="font-semibold text-[var(--text-muted)]">Cadence</dt>
+                <dt className="font-semibold text-[var(--text-muted)]">{translateUi(uiLocale, 'ptCadence')}</dt>
                 <dd className="font-mono text-[11px] tabular-nums text-[var(--text-primary)]">
                   {bundle.protactile.hapticPatternMs.join('-')}ms
                 </dd>
@@ -317,16 +322,19 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
         >
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-              American Sign Language (ASL)
+              {translateUi(uiLocale, 'aslTitle')}
             </h3>
             <span className="font-mono text-[11px] tabular-nums text-[var(--text-muted)]">
-              Sign {aslStepIndex + 1}/{bundle.aslSteps.length}
+              {formatUi(uiLocale, 'signCounter', {
+                current: aslStepIndex + 1,
+                total: bundle.aslSteps.length,
+              })}
             </span>
           </div>
 
           <div className="rounded-lg bg-[var(--bg-subtle)] p-3">
             <p className="text-[11px] font-semibold text-[var(--text-muted)]">
-              Topic-Comment ASL Gloss
+              {translateUi(uiLocale, 'aslTopicCommentGloss')}
             </p>
             <p className="mt-1 font-mono text-xs font-semibold text-[var(--text-primary)]">
               {bundle.aslGloss}
@@ -345,19 +353,19 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
               </div>
               <dl className="grid grid-cols-1 gap-1 pt-1 text-[11px]">
                 <div className="flex justify-between gap-2">
-                  <dt className="text-[var(--text-muted)]">Handshape:</dt>
+                  <dt className="text-[var(--text-muted)]">{translateUi(uiLocale, 'handshapeLabel')}:</dt>
                   <dd className="text-right font-medium text-[var(--text-primary)]">
                     {activeAslStep.handshape}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-[var(--text-muted)]">Location:</dt>
+                  <dt className="text-[var(--text-muted)]">{translateUi(uiLocale, 'locationLabel')}:</dt>
                   <dd className="text-right font-medium text-[var(--text-primary)]">
                     {activeAslStep.location}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-[var(--text-muted)]">Movement:</dt>
+                  <dt className="text-[var(--text-muted)]">{translateUi(uiLocale, 'movementLabel')}:</dt>
                   <dd className="text-right font-medium text-[var(--text-primary)]">
                     {activeAslStep.movement}
                   </dd>
@@ -373,7 +381,7 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
                     className="inline-flex min-h-[28px] items-center gap-1 rounded border border-[var(--border-hairline)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-primary)] disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
                   >
                     <ChevronLeft className="h-3 w-3" aria-hidden="true" />
-                    <span>Prev Sign</span>
+                    <span>{translateUi(uiLocale, 'prevSign')}</span>
                   </button>
                   <button
                     type="button"
@@ -385,7 +393,7 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
                     disabled={aslStepIndex >= bundle.aslSteps.length - 1}
                     className="inline-flex min-h-[28px] items-center gap-1 rounded border border-[var(--border-hairline)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-primary)] disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
                   >
-                    <span>Next Sign</span>
+                    <span>{translateUi(uiLocale, 'nextSign')}</span>
                     <ChevronRight className="h-3 w-3" aria-hidden="true" />
                   </button>
                 </div>
@@ -406,7 +414,7 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
               htmlFor="sw-language-select"
               className="block text-xs font-semibold text-[var(--text-primary)]"
             >
-              SignWriting Target Sign Language
+              {translateUi(uiLocale, 'swTargetLanguageLabel')}
             </label>
             <select
               id="sw-language-select"
@@ -431,7 +439,7 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
                 </option>
               ))}
               <option value="__custom__">
-                Custom Sign Language (Any ISO 639-3 / Name)...
+                {translateUi(uiLocale, 'swCustomOption')}
               </option>
             </select>
 
@@ -446,8 +454,8 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
               >
                 <input
                   type="text"
-                  aria-label="Enter any international sign language name or ISO code"
-                  placeholder="e.g. KSL, FSL, CSL, NZSL..."
+                  aria-label={translateUi(uiLocale, 'swCustomInputAria')}
+                  placeholder={translateUi(uiLocale, 'swCustomPlaceholder')}
                   value={customLanguageDraft}
                   onChange={(e) => setCustomLanguageDraft(e.target.value)}
                   className="min-h-[34px] flex-1 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-2.5 py-1 text-xs text-[var(--text-primary)]"
@@ -456,7 +464,7 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
                   type="submit"
                   className="min-h-[34px] rounded-lg bg-[var(--accent-primary)] px-3 py-1 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] cursor-pointer"
                 >
-                  Apply
+                  {translateUi(uiLocale, 'applyBtn')}
                 </button>
               </form>
             )}
@@ -465,6 +473,7 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
           <SignWritingLane
             sequence={bundle.signWriting}
             direction={swDirection}
+            uiLocale={uiLocale}
             onToggleDirection={() =>
               setSwDirection((d) => (d === 'vertical' ? 'horizontal' : 'vertical'))
             }
@@ -476,16 +485,18 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
       <div className="mt-4 border-t border-[var(--border-hairline)] pt-3">
         <div className="mb-2 flex items-center justify-between text-xs text-[var(--text-muted)]">
           <span>{translateUi(uiLocale, 'operationLog')}</span>
-          <span className="font-mono tabular-nums">{events.length} events</span>
+          <span className="font-mono tabular-nums">
+            {formatUi(uiLocale, 'eventsCount', { count: events.length })}
+          </span>
         </div>
 
         {events.length === 0 ? (
           <p className="rounded-lg border border-dashed border-[var(--border-hairline)] p-4 text-center text-xs text-[var(--text-muted)]">
-            No operations logged yet. Perform an action in any module to record an entry.
+            {translateUi(uiLocale, 'noOperationsLogged')}
           </p>
         ) : (
           <ul
-            aria-label="Chronological cluster operations"
+            aria-label={translateUi(uiLocale, 'chronologicalOpsAria')}
             className="max-h-[300px] space-y-2 overflow-y-auto pr-1"
           >
             {events.map((ev) => {
@@ -497,10 +508,10 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
                     : Info;
               const statusText =
                 ev.severity === 'success'
-                  ? 'Confirmed'
+                  ? translateUi(uiLocale, 'statusConfirmed')
                   : ev.severity === 'warning'
-                    ? 'Attention'
-                    : 'Info';
+                    ? translateUi(uiLocale, 'statusAttention')
+                    : translateUi(uiLocale, 'statusInfo');
               const toneClass =
                 ev.severity === 'success'
                   ? 'text-emerald-700 dark:text-emerald-400'
@@ -518,9 +529,11 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
                       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>{statusText}</span>
                       <span aria-hidden="true">·</span>
-                      <span>{MODULE_LABELS[ev.module]}</span>
+                      <span>{translateUi(uiLocale, MODULE_KEYS[ev.module])}</span>
                     </span>
-                    <time className="font-mono tabular-nums">{ev.timestamp}</time>
+                    <time className="font-mono tabular-nums">
+                      {formatLocalizedTime(uiLocale, ev.timestampMs ?? Date.now())}
+                    </time>
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-[var(--text-primary)]">
                     {ev.summary}
