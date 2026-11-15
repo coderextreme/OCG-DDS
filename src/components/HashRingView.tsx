@@ -568,7 +568,7 @@ export const HashRingView: React.FC<HashRingViewProps> = ({
                           <span>{isHealthy ? translateUi(uiLocale, 'healthyLabel') : translateUi(uiLocale, 'offlineLabel')}</span>
                         </span>
                         <span aria-hidden="true">·</span>
-                        <span className="font-mono tabular-nums">{formatUi(uiLocale, 'primaryKeysCount', primaryCount)}</span>
+                        <span className="font-mono tabular-nums">{formatUi(uiLocale, 'primaryKeysCount', { count: primaryCount })}</span>
                       </div>
                     </div>
 
@@ -663,7 +663,7 @@ export const HashRingView: React.FC<HashRingViewProps> = ({
           <div className="mt-4 rounded-lg border border-dashed border-[var(--border-hairline)] p-6 text-center text-sm text-[var(--text-muted)]">
             {entries.length === 0
               ? translateUi(uiLocale, 'emptyRingMsg')
-              : formatUi(uiLocale, 'noKeysMatchMsg', searchQuery)}
+              : formatUi(uiLocale, 'noKeysMatchMsg', { query: searchQuery })}
           </div>
         ) : (
           <div className="mt-4 overflow-x-auto">
@@ -753,7 +753,7 @@ export const HashRingView: React.FC<HashRingViewProps> = ({
       {graphNodes.length > 0 && (
         <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5">
           <h2 className="text-base font-semibold text-[var(--text-primary)]">
-            {formatUi(uiLocale, 'liveGraphRingTitle', graphNodes.length)}
+            {formatUi(uiLocale, 'liveGraphRingTitle', { count: graphNodes.length })}
           </h2>
           <p className="mt-0.5 text-xs text-[var(--text-muted)]">
             {translateUi(uiLocale, 'liveGraphRingSubtitle')}

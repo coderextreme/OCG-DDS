@@ -11,12 +11,11 @@ import {
 } from 'lucide-react';
 import {
   translateUi,
-  UI_LOCALES,
   type SupportedUiLocale,
   type UiMessageKey,
 } from '../core/i18n';
 import type { AccessibleOutputChannel, ThemeMode } from '../types/system';
-import { ACCESSIBILITY_LANGUAGE_OPTIONS, accessibilityProfileLabels } from '../core/accessibilityLanguages';
+import { UnifiedLanguageOutputSelect } from './UnifiedLanguageOutputSelect';
 
 interface WorkspaceToolbarProps {
   theme: ThemeMode;
@@ -24,11 +23,12 @@ interface WorkspaceToolbarProps {
   reducedMotion: boolean;
   onToggleReducedMotion: () => void;
   outputChannel: AccessibleOutputChannel;
+  brailleProfileId: string;
+  deafblindProfileId: string;
+  signLanguage: string;
   onChangeOutputChannel: (channel: AccessibleOutputChannel) => void;
+  onSelectOutputVariant: (variantKey: string) => void;
   uiLocale: SupportedUiLocale;
-  onChangeUiLocale: (locale: SupportedUiLocale) => void;
-  accessibilityProfile: string;
-  onChangeAccessibilityProfile: (profileId: string) => void;
   onOpenLanguageLab: () => void;
   onResetCluster: () => void;
 }
@@ -60,125 +60,54 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
   reducedMotion,
   onToggleReducedMotion,
   outputChannel,
+  brailleProfileId,
+  deafblindProfileId,
+  signLanguage,
   onChangeOutputChannel,
+  onSelectOutputVariant,
   uiLocale,
-  onChangeUiLocale,
-  accessibilityProfile,
-  onChangeAccessibilityProfile,
   onOpenLanguageLab,
   onResetCluster,
 }) => {
-  const accessibilityLabels = accessibilityProfileLabels(uiLocale);
   return (
     <div className="border-b border-[var(--border-hairline)] bg-[var(--bg-subtle)]">
       <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
-        {/* Display Contrast Selector + Language Quick Selector */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className="text-xs font-medium text-[var(--text-muted)]"
-              id="theme-group-label"
-            >
-              {translateUi(uiLocale, 'displayContrast')}
-            </span>
-            <div
-              role="group"
-              aria-labelledby="theme-group-label"
-              className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-0.5"
-            >
-              {THEME_OPTIONS.map(({ id, key, Icon }) => {
-                const selected = theme === id;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => onChangeTheme(id)}
-                    aria-pressed={selected}
-                    className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap shrink-0 cursor-pointer ${
-                      selected
-                        ? 'bg-[var(--accent-primary)] text-[var(--accent-text-on)] font-semibold'
-                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5" aria-hidden={true} />
-                    <span>{translateUi(uiLocale, key)}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            <label
-              htmlFor="toolbar-ui-locale"
-              className="inline-flex items-center gap-1 text-xs font-medium text-[var(--text-muted)]"
-            >
-              <Globe className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{translateUi(uiLocale, 'languageLabel')}</span>
-            </label>
-            <select
-              id="toolbar-ui-locale"
-              aria-label={translateUi(uiLocale, 'interfaceLanguageAria')}
-              value={uiLocale}
-              onChange={(e) =>
-                onChangeUiLocale(e.target.value as SupportedUiLocale)
-              }
-              className="min-h-[38px] max-w-[175px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-primary)] cursor-pointer"
-            >
-              {UI_LOCALES.map((loc) => (
-                <option key={loc.code} value={loc.code}>
-                  {loc.nativeName} ({loc.code})
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={onOpenLanguageLab}
-              className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs font-semibold text-[var(--accent-primary)] hover:bg-[var(--bg-canvas)] whitespace-nowrap shrink-0 cursor-pointer"
-            >
-              <span>{translateUi(uiLocale, 'testLanguages')}</span>
-            </button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            <label
-              htmlFor="accessibility-language-profile"
-              className="text-xs font-medium text-[var(--text-muted)]"
-            >
-              {accessibilityLabels.label}
-            </label>
-            <select
-              id="accessibility-language-profile"
-              aria-describedby="accessibility-language-profile-help"
-              value={accessibilityProfile}
-              onChange={(e) => onChangeAccessibilityProfile(e.target.value)}
-              className="min-h-[38px] max-w-[260px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-primary)]"
-            >
-              <optgroup label={accessibilityLabels.brailleGroup}>
-                {ACCESSIBILITY_LANGUAGE_OPTIONS.filter((option) => option.kind === 'braille').map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.code} · {option.nativeName}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label={accessibilityLabels.deafblindGroup}>
-                {ACCESSIBILITY_LANGUAGE_OPTIONS.filter((option) => option.kind === 'deafblind').map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.code} · {option.nativeName}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-            <span id="accessibility-language-profile-help" className="sr-only">
-              Choose a preferred braille code or deafblind communication approach. This currently selects a profile and output channel; it does not provide automatic translation or interpretation.
-            </span>
-            <span className="sr-only" aria-live="polite">
-              Profile selection is saved on this device.
-            </span>
+        {/* Display Contrast Selector */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className="text-xs font-medium text-[var(--text-muted)]"
+            id="theme-group-label"
+          >
+            {translateUi(uiLocale, 'displayContrast')}
+          </span>
+          <div
+            role="group"
+            aria-labelledby="theme-group-label"
+            className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-0.5"
+          >
+            {THEME_OPTIONS.map(({ id, key, Icon }) => {
+              const selected = theme === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => onChangeTheme(id)}
+                  aria-pressed={selected}
+                  className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap shrink-0 cursor-pointer ${
+                    selected
+                      ? 'bg-[var(--accent-primary)] text-[var(--accent-text-on)] font-semibold'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" aria-hidden={true} />
+                  <span>{translateUi(uiLocale, key)}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Accessible Output Channel Selector + Motion + Reset */}
+        {/* Combined Language (Standard), Output Channel, and Accessible Event Language Selector + Motion + Reset */}
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="flex flex-wrap items-center gap-2">
             <span
@@ -187,11 +116,16 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
             >
               {outputChannel === 'protactile' ? (
                 <Hand className="h-3.5 w-3.5" aria-hidden="true" />
+              ) : outputChannel === 'standard' ? (
+                <Globe className="h-3.5 w-3.5" aria-hidden="true" />
               ) : (
                 <Accessibility className="h-3.5 w-3.5" aria-hidden="true" />
               )}
-              <span>{translateUi(uiLocale, 'outputChannel')}</span>
+              <span>
+                {translateUi(uiLocale, 'outputChannel')} · {translateUi(uiLocale, 'languageLabel')}
+              </span>
             </span>
+
             <div
               role="group"
               aria-labelledby="output-channel-label"
@@ -216,6 +150,33 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
                 );
               })}
             </div>
+
+            <div className="w-full sm:w-auto sm:min-w-[230px] sm:max-w-[270px]">
+              <UnifiedLanguageOutputSelect
+                id="output-channel-variant"
+                uiLocale={uiLocale}
+                outputChannel={outputChannel}
+                brailleProfileId={brailleProfileId}
+                deafblindProfileId={deafblindProfileId}
+                signLanguage={signLanguage}
+                onSelectVariant={onSelectOutputVariant}
+                onApplyCustomSignLanguage={(channel, codeOrName) =>
+                  onSelectOutputVariant(`${channel}:${codeOrName}`)
+                }
+                ariaDescribedBy="output-variant-help"
+              />
+              <span id="output-variant-help" className="sr-only">
+                Unified selector combining Standard UI languages, Braille display codes, DeafBlind tactile communication methods, natural Sign Languages, and SignWriting 2D languages. Braille codes and DeafBlind methods configure display and cue framing preferences and do not claim automatic human translation.
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={onOpenLanguageLab}
+              className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs font-semibold text-[var(--accent-primary)] hover:bg-[var(--bg-canvas)] whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <span>{translateUi(uiLocale, 'testLanguages')}</span>
+            </button>
           </div>
 
           <button

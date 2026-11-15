@@ -1,6 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Globe, Play, Sparkles, X } from 'lucide-react';
-import type { AccessibleOutputChannel } from '../core/accessibilityOutput';
+import {
+  BRAILLE_LANGUAGE_OPTIONS,
+  DEAFBLIND_COMMUNICATION_OPTIONS,
+} from '../core/accessibilityLanguages';
+import {
+  resolveBrailleProfile,
+  resolveDeafblindProfile,
+  type AccessibleOutputChannel,
+} from '../core/accessibilityOutput';
 import {
   formatUi,
   resolveUiLocale,
@@ -10,35 +18,35 @@ import {
   type LanguageSelfTestResult,
   type SupportedUiLocale,
 } from '../core/i18n';
-import { SIGN_LANGUAGE_PRESETS } from '../core/signWriting';
+import { resolveSignLanguage, SIGN_LANGUAGE_PRESETS } from '../core/signWriting';
 
 interface LanguageTestDialogProps {
   open: boolean;
   uiLocale: SupportedUiLocale;
   outputChannel: AccessibleOutputChannel;
+  brailleProfileId: string;
+  deafblindProfileId: string;
   signLanguage: string;
   onChangeUiLocale: (locale: SupportedUiLocale, pairSignLanguage: boolean) => void;
   onChangeOutputChannel: (channel: AccessibleOutputChannel) => void;
+  onChangeBrailleProfile: (profileId: string) => void;
+  onChangeDeafblindProfile: (profileId: string) => void;
   onChangeSignLanguage: (lang: string) => void;
   onDispatchSampleEvent: (severity: 'info' | 'warning' | 'success', summary: string) => void;
   onClose: () => void;
 }
 
-const OUTPUT_MODES: Array<{ id: AccessibleOutputChannel; label: string }> = [
-  { id: 'standard', label: 'Standard / SR' },
-  { id: 'braille', label: 'Braille (40-cell + Dots)' },
-  { id: 'protactile', label: 'Protactile (PT + Haptics)' },
-  { id: 'asl', label: 'ASL (Gloss + Cards)' },
-  { id: 'signwriting', label: 'SignWriting (FSW + SWU + 2D)' },
-];
-
 export const LanguageTestDialog: React.FC<LanguageTestDialogProps> = ({
   open,
   uiLocale,
   outputChannel,
+  brailleProfileId,
+  deafblindProfileId,
   signLanguage,
   onChangeUiLocale,
   onChangeOutputChannel,
+  onChangeBrailleProfile,
+  onChangeDeafblindProfile,
   onChangeSignLanguage,
   onDispatchSampleEvent,
   onClose,
@@ -51,6 +59,44 @@ export const LanguageTestDialog: React.FC<LanguageTestDialogProps> = ({
   );
 
   const activeLocaleSpec = resolveUiLocale(uiLocale);
+  const activeBraille = resolveBrailleProfile(brailleProfileId);
+  const activeDeafblind = resolveDeafblindProfile(deafblindProfileId);
+  const activeSignSpec = resolveSignLanguage(signLanguage);
+
+  const outputModes: Array<{ id: AccessibleOutputChannel; label: string }> = [
+    { id: 'standard', label: translateUi(uiLocale, 'channelStandard') },
+    {
+      id: 'braille',
+      label: `${translateUi(uiLocale, 'channelBraille')} (40-cell · ${activeBraille.code})`,
+    },
+    {
+      id: 'protactile',
+      label: `${translateUi(uiLocale, 'channelProtactile')} (${activeDeafblind.code})`,
+    },
+    {
+      id: 'asl',
+      label: `${translateUi(uiLocale, 'channelAsl')} (${activeSignSpec.code})`,
+    },
+    {
+      id: 'signwriting',
+      label: `${translateUi(uiLocale, 'channelSignWriting')} (FSW + SWU · ${activeSignSpec.code})`,
+    },
+  ];
+
+  const activeOutputLabel = (() => {
+    switch (outputChannel) {
+      case 'braille':
+        return `${translateUi(uiLocale, 'channelBraille')} · ${activeBraille.code}`;
+      case 'protactile':
+        return `${translateUi(uiLocale, 'channelProtactile')} · ${activeDeafblind.code}`;
+      case 'asl':
+        return `${translateUi(uiLocale, 'channelAsl')} · ${activeSignSpec.code}`;
+      case 'signwriting':
+        return `${translateUi(uiLocale, 'channelSignWriting')} · ${activeSignSpec.code}`;
+      default:
+        return translateUi(uiLocale, 'channelStandard');
+    }
+  })();
 
   useEffect(() => {
     if (!open) return;
@@ -142,10 +188,9 @@ export const LanguageTestDialog: React.FC<LanguageTestDialogProps> = ({
                 onChange={(e) => setPairSignLang(e.target.checked)}
               />
               <span>
-                {translateUi(uiLocale, 'labAutoPairSign')}{' '}
-                <strong className="font-mono text-[var(--text-primary)]">
-                  {activeLocaleSpec.recommendedSignLanguage.toUpperCase()}
-                </strong>
+                {formatUi(uiLocale, 'labAutoPairSign', {
+                  signLang: activeLocaleSpec.recommendedSignLanguage.toUpperCase(),
+                })}
               </span>
             </label>
 
@@ -174,18 +219,68 @@ export const LanguageTestDialog: React.FC<LanguageTestDialogProps> = ({
               }
               className="min-h-[38px] w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary)]"
             >
-              {OUTPUT_MODES.map((m) => (
+              {outputModes.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.label}
                 </option>
               ))}
             </select>
 
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div>
+                <label
+                  htmlFor="lab-braille-select"
+                  className="mb-1 block text-[11px] font-semibold text-[var(--text-primary)]"
+                >
+                  {translateUi(uiLocale, 'brailleCodeSelectLabel')}
+                </label>
+                <select
+                  id="lab-braille-select"
+                  value={activeBraille.id}
+                  onChange={(e) => {
+                    onChangeBrailleProfile(e.target.value);
+                    onChangeOutputChannel('braille');
+                  }}
+                  className="min-h-[34px] w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)]"
+                >
+                  {BRAILLE_LANGUAGE_OPTIONS.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.code} · {opt.nativeName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="lab-tactile-select"
+                  className="mb-1 block text-[11px] font-semibold text-[var(--text-primary)]"
+                >
+                  {translateUi(uiLocale, 'tactileMethodSelectLabel')}
+                </label>
+                <select
+                  id="lab-tactile-select"
+                  value={activeDeafblind.id}
+                  onChange={(e) => {
+                    onChangeDeafblindProfile(e.target.value);
+                    onChangeOutputChannel('protactile');
+                  }}
+                  className="min-h-[34px] w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)]"
+                >
+                  {DEAFBLIND_COMMUNICATION_OPTIONS.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.code} · {opt.nativeName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <label
               htmlFor="lab-sign-language-select"
               className="block text-xs font-semibold text-[var(--text-primary)]"
             >
-              {translateUi(uiLocale, 'labSignTargetLabel')}
+              {translateUi(uiLocale, 'signLanguageSelectLabel')}
             </label>
             <select
               id="lab-sign-language-select"
@@ -193,6 +288,9 @@ export const LanguageTestDialog: React.FC<LanguageTestDialogProps> = ({
               onChange={(e) => {
                 if (e.target.value !== '__custom__') {
                   onChangeSignLanguage(e.target.value);
+                  if (outputChannel !== 'asl' && outputChannel !== 'signwriting') {
+                    onChangeOutputChannel('signwriting');
+                  }
                 }
               }}
               className="min-h-[38px] w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary)]"
@@ -214,7 +312,11 @@ export const LanguageTestDialog: React.FC<LanguageTestDialogProps> = ({
                 e.preventDefault();
                 if (customSignInput.trim()) {
                   onChangeSignLanguage(customSignInput.trim());
-                  onChangeOutputChannel('signwriting');
+                  onChangeOutputChannel(
+                    outputChannel === 'asl' || outputChannel === 'signwriting'
+                      ? outputChannel
+                      : 'signwriting'
+                  );
                 }
               }}
               className="flex gap-1.5"
@@ -240,7 +342,10 @@ export const LanguageTestDialog: React.FC<LanguageTestDialogProps> = ({
         {/* Live Event Simulation Triggers */}
         <div className="mt-4 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] p-4">
           <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-            {translateUi(uiLocale, 'labStep3Title')} ({activeLocaleSpec.nativeName} · {outputChannel.toUpperCase()})
+            {formatUi(uiLocale, 'labStep3Title', {
+              nativeName: activeLocaleSpec.nativeName,
+              channel: activeOutputLabel,
+            })}
           </h3>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">
             {translateUi(uiLocale, 'labStep3Desc')}
@@ -254,7 +359,11 @@ export const LanguageTestDialog: React.FC<LanguageTestDialogProps> = ({
               className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-[var(--accent-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] cursor-pointer"
             >
               <Play className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{translateUi(uiLocale, 'labTestLocalizedBtn')} ({activeLocaleSpec.code.toUpperCase()})</span>
+              <span>
+                {formatUi(uiLocale, 'labTestLocalizedBtn', {
+                  code: activeLocaleSpec.code.toUpperCase(),
+                })}
+              </span>
             </button>
 
             <button
@@ -347,7 +456,7 @@ export const LanguageTestDialog: React.FC<LanguageTestDialogProps> = ({
                 </span>
                 <span className="font-mono text-[11px] text-[var(--text-muted)]">
                   {formatUi(uiLocale, 'labRtlVerified', {
-                    list: selfTestResult.rtlLocalesVerified.join(', '),
+                    rtl: selfTestResult.rtlLocalesVerified.join(', '),
                   })}
                 </span>
               </div>

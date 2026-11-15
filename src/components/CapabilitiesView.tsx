@@ -179,8 +179,12 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
             )}
             <span>
               {activeCapValid
-                ? formatUi(uiLocale, 'activeCapStatusLine', activeCap?.label, activeCap?.scope, reachableNodesForActive.length, nodes.length)
-                : `Active: ${activeCap?.label} (${activeCap?.scope}) · ${translateUi(uiLocale, 'tokenRevokedLabel')}`}
+                ? formatUi(uiLocale, 'activeCapStatusLine', {
+                    label: activeCap?.label ?? '',
+                    scope: activeCap?.scope ?? '',
+                    detail: `${reachableNodesForActive.length}/${nodes.length}`,
+                  })
+                : `${activeCap?.label} (${activeCap?.scope}) · ${translateUi(uiLocale, 'tokenRevokedLabel')}`}
             </span>
           </div>
         </div>
@@ -331,7 +335,7 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
         <div className="lg:col-span-7 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 space-y-4">
           <div>
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              {formatUi(uiLocale, 'delegationChainTitle', capabilities.length)}
+              {formatUi(uiLocale, 'delegationChainTitle', { count: capabilities.length })}
             </h2>
             <p className="mt-0.5 text-xs text-[var(--text-muted)]">
               {translateUi(uiLocale, 'delegationChainSubtitle')}
@@ -346,7 +350,7 @@ export const CapabilitiesView: React.FC<CapabilitiesViewProps> = ({
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-                  {formatUi(uiLocale, 'editingCapTitle', editingCapId)}
+                  {formatUi(uiLocale, 'editingCapTitle', { id: editingCapId })}
                 </h3>
                 <span className="font-mono text-[11px] text-[var(--text-muted)]">
                   {translateUi(uiLocale, 'scopeRightsLocked')}

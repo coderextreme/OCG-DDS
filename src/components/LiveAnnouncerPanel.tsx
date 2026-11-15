@@ -16,16 +16,15 @@ import {
 import {
   formatLocalizedTime,
   formatUi,
+  resolveUiLocale,
   translateUi,
   type SupportedUiLocale,
   type UiMessageKey,
 } from '../core/i18n';
-import {
-  SIGN_LANGUAGE_PRESETS,
-  type SignWritingDirection,
-} from '../core/signWriting';
+import type { SignWritingDirection } from '../core/signWriting';
 import type { AuditEvent, SystemModuleId } from '../types/system';
 import { SignWritingLane } from './SignWritingLane';
+import { UnifiedLanguageOutputSelect } from './UnifiedLanguageOutputSelect';
 
 interface LiveAnnouncerPanelProps {
   activeModule: SystemModuleId;
@@ -33,8 +32,10 @@ interface LiveAnnouncerPanelProps {
   latestAnnouncement: string;
   outputChannel: AccessibleOutputChannel;
   onChangeOutputChannel: (channel: AccessibleOutputChannel) => void;
+  brailleProfileId: string;
+  deafblindProfileId: string;
   signLanguage: string;
-  onChangeSignLanguage: (lang: string) => void;
+  onSelectOutputVariant: (variantKey: string) => void;
   uiLocale?: SupportedUiLocale;
   events: AuditEvent[];
   onClearEvents: () => void;
@@ -64,8 +65,10 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
   latestAnnouncement,
   outputChannel,
   onChangeOutputChannel,
+  brailleProfileId,
+  deafblindProfileId,
   signLanguage,
-  onChangeSignLanguage,
+  onSelectOutputVariant,
   uiLocale = 'en',
   events,
   onClearEvents,
@@ -75,26 +78,7 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
   const [hapticStatus, setHapticStatus] = useState<string | null>(null);
   const [swDirection, setSwDirection] = useState<SignWritingDirection>('vertical');
 
-  const isPresetLanguage = SIGN_LANGUAGE_PRESETS.some(
-    (p) => p.id.toLowerCase() === signLanguage.toLowerCase()
-  );
-  const [useCustomLanguage, setUseCustomLanguage] = useState<boolean>(!isPresetLanguage);
-  const [customLanguageDraft, setCustomLanguageDraft] = useState<string>(
-    isPresetLanguage ? '' : signLanguage
-  );
-
-  // Sync selector mode when signLanguage changes externally (e.g. from LanguageTestDialog)
-  useEffect(() => {
-    const matchesPreset = SIGN_LANGUAGE_PRESETS.some(
-      (p) => p.id.toLowerCase() === signLanguage.toLowerCase()
-    );
-    if (matchesPreset) {
-      setUseCustomLanguage(false);
-    } else {
-      setUseCustomLanguage(true);
-      setCustomLanguageDraft(signLanguage);
-    }
-  }, [signLanguage]);
+  const activeLocaleSpec = resolveUiLocale(uiLocale);
 
   const bundle = useMemo(
     () =>
@@ -103,28 +87,55 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
         latestSeverity,
         latestAnnouncement,
         signLanguage,
-        swDirection
+        swDirection,
+        uiLocale,
+        brailleProfileId,
+        deafblindProfileId
       ),
-    [activeModule, latestSeverity, latestAnnouncement, signLanguage, swDirection]
+    [
+      activeModule,
+      latestSeverity,
+      latestAnnouncement,
+      signLanguage,
+      swDirection,
+      uiLocale,
+      brailleProfileId,
+      deafblindProfileId,
+    ]
   );
 
-  // Reset ASL step cursor and haptic banner when new event arrives
+  // Reset sign step cursor and haptic banner when new event arrives or output variant changes
   useEffect(() => {
     setAslStepIndex(0);
     setHapticStatus(null);
-  }, [latestAnnouncement, activeModule]);
+  }, [latestAnnouncement, activeModule, signLanguage, deafblindProfileId, brailleProfileId]);
 
   const activeAslStep =
     bundle.aslSteps[Math.min(aslStepIndex, Math.max(0, bundle.aslSteps.length - 1))];
 
+  const activeChannelBadge = useMemo(() => {
+    switch (outputChannel) {
+      case 'braille':
+        return `${translateUi(uiLocale, 'channelBraille')} · ${bundle.brailleProfile.code}`;
+      case 'protactile':
+        return `${translateUi(uiLocale, 'channelProtactile')} · ${bundle.protactile.profileCode}`;
+      case 'asl':
+        return `${translateUi(uiLocale, 'channelAsl')} · ${bundle.signLanguageSpec.code}`;
+      case 'signwriting':
+        return `${translateUi(uiLocale, 'channelSignWriting')} · ${bundle.signWriting.language.code}`;
+      default:
+        return `${translateUi(uiLocale, 'channelStandard')} · ${activeLocaleSpec.nativeName} (${activeLocaleSpec.code})`;
+    }
+  }, [outputChannel, uiLocale, bundle, activeLocaleSpec]);
+
   const liveAnnouncementText = useMemo(() => {
     switch (outputChannel) {
       case 'braille':
-        return bundle.brailleLines.join(' ');
+        return `${bundle.brailleProfile.nativeName}: ${bundle.brailleLines.join(' ')}`;
       case 'protactile':
-        return `${bundle.protactile.spatialZone}. ${bundle.protactile.topographicTrace}. Backchannel: ${bundle.protactile.backchannel}.`;
+        return `${bundle.protactile.profileName} · ${bundle.protactile.spatialZone}. ${bundle.protactile.topographicTrace}. Backchannel: ${bundle.protactile.backchannel}.`;
       case 'asl':
-        return `ASL Gloss: ${bundle.aslGloss}`;
+        return `${bundle.signLanguageSpec.code} (${bundle.signLanguageSpec.nativeName}): ${bundle.aslGloss}`;
       case 'signwriting':
         return `SignWriting (${bundle.signWriting.language.code}): ${bundle.signWriting.localizedGlossLine} · ${bundle.signWriting.boxes.length} SignBoxes · SWU: ${bundle.signWriting.swu}`;
       default:
@@ -138,13 +149,20 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
       typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
     if (supported) {
       navigator.vibrate(pattern);
-      setHapticStatus(`${translateUi(uiLocale, 'hapticDispatched')} [${pattern.join('ms, ')}ms]`);
+      setHapticStatus(
+        formatUi(uiLocale, 'hapticDispatched', { pattern: pattern.join('ms, ') })
+      );
     } else {
       setHapticStatus(
-        `${translateUi(uiLocale, 'hapticVisualReady')}: [${pattern.join('ms, ')}ms]`
+        formatUi(uiLocale, 'hapticVisualReady', { pattern: pattern.join('ms, ') })
       );
     }
   };
+
+  const manualTypeStr =
+    bundle.signLanguageSpec.alphabetType === 'two-handed'
+      ? translateUi(uiLocale, 'manual2H')
+      : translateUi(uiLocale, 'manual1H');
 
   return (
     <aside
@@ -199,6 +217,29 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
         })}
       </div>
 
+      {/* Combined Language & Output Variant Selector synced across Toolbar & Accessible Event Output */}
+      <div className="mt-2.5 space-y-1">
+        <label
+          htmlFor="announcer-language-output-select"
+          className="block text-[11px] font-semibold text-[var(--text-muted)]"
+        >
+          {translateUi(uiLocale, 'outputVariantLabel')}
+        </label>
+        <UnifiedLanguageOutputSelect
+          id="announcer-language-output-select"
+          uiLocale={uiLocale}
+          outputChannel={outputChannel}
+          brailleProfileId={brailleProfileId}
+          deafblindProfileId={deafblindProfileId}
+          signLanguage={signLanguage}
+          onSelectVariant={onSelectOutputVariant}
+          onApplyCustomSignLanguage={(channel, codeOrName) =>
+            onSelectOutputVariant(`${channel}:${codeOrName}`)
+          }
+          className="min-h-[36px] w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-primary)] cursor-pointer"
+        />
+      </div>
+
       {/* ARIA live region */}
       <div
         role={latestSeverity === 'warning' ? 'alert' : 'status'}
@@ -208,7 +249,7 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
         className="mt-3 rounded-lg bg-[var(--bg-subtle)] p-3.5"
       >
         <p className="text-xs font-semibold text-[var(--text-muted)]">
-          {translateUi(uiLocale, 'latestEventLabel')} ({outputChannel.toUpperCase()})
+          {formatUi(uiLocale, 'latestEventLabel', { channel: activeChannelBadge })}
         </p>
         <p className="mt-1 break-words [overflow-wrap:anywhere] text-sm font-medium leading-snug text-[var(--text-primary)]">
           {liveAnnouncementText}
@@ -219,24 +260,29 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
       {outputChannel === 'braille' && (
         <div
           data-testid="braille-buffer"
-          className="mt-3 border-t border-[var(--border-hairline)] pt-3"
+          className="mt-3 space-y-2.5 border-t border-[var(--border-hairline)] pt-3"
         >
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-              {translateUi(uiLocale, 'brailleBufferTitle')}
-            </h3>
+            <div>
+              <h3 className="text-xs font-semibold text-[var(--text-primary)]">
+                {translateUi(uiLocale, 'brailleBufferTitle')} ({bundle.brailleProfile.code})
+              </h3>
+              <p className="text-[11px] text-[var(--text-muted)]">
+                {bundle.brailleProfile.nativeName} · {bundle.brailleProfile.description}
+              </p>
+            </div>
             <button
               type="button"
               onClick={() => setShowUnicodeDots((v) => !v)}
               aria-pressed={showUnicodeDots}
-              className="rounded border border-[var(--border-hairline)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+              className="shrink-0 rounded border border-[var(--border-hairline)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
             >
               {showUnicodeDots ? translateUi(uiLocale, 'showAscii') : translateUi(uiLocale, 'showDots')}
             </button>
           </div>
           <ol
             aria-label={translateUi(uiLocale, 'brailleLinesAria')}
-            className="mt-2 space-y-1 rounded-lg bg-[var(--bg-subtle)] p-3 font-mono text-xs text-[var(--text-primary)]"
+            className="space-y-1 rounded-lg bg-[var(--bg-subtle)] p-3 font-mono text-xs text-[var(--text-primary)]"
           >
             {(showUnicodeDots ? bundle.brailleDots : bundle.brailleLines).map(
               (line, idx) => (
@@ -250,21 +296,28 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
         </div>
       )}
 
-      {/* Protactile Language (PT) Output */}
+      {/* DeafBlind & Tactile Communication Panel */}
       {outputChannel === 'protactile' && (
         <div
           data-testid="protactile-panel"
           className="mt-3 space-y-2.5 border-t border-[var(--border-hairline)] pt-3"
         >
           <div className="flex items-center justify-between gap-2">
-            <h3 className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)]">
-              <Hand className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
-              <span>{translateUi(uiLocale, 'ptCueTitle')}</span>
-            </h3>
+            <div>
+              <h3 className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)]">
+                <Hand className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
+                <span>
+                  {translateUi(uiLocale, 'ptCueTitle')} · {bundle.protactile.profileName}
+                </span>
+              </h3>
+              <p className="text-[11px] text-[var(--text-muted)]">
+                {bundle.protactile.profileDescription}
+              </p>
+            </div>
             <button
               type="button"
               onClick={handleTriggerHaptic}
-              className="inline-flex min-h-[28px] items-center gap-1 rounded border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-2 py-0.5 text-[11px] font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
+              className="inline-flex min-h-[28px] shrink-0 items-center gap-1 rounded border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-2 py-0.5 text-[11px] font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
             >
               <Vibrate className="h-3 w-3" aria-hidden="true" />
               <span>{translateUi(uiLocale, 'pulseHaptics')}</span>
@@ -314,16 +367,21 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
         </div>
       )}
 
-      {/* American Sign Language (ASL) Output */}
+      {/* International Natural Sign Language Gloss & Parameter Panel */}
       {outputChannel === 'asl' && (
         <div
           data-testid="asl-panel"
           className="mt-3 space-y-2.5 border-t border-[var(--border-hairline)] pt-3"
         >
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-              {translateUi(uiLocale, 'aslTitle')}
-            </h3>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-xs font-semibold text-[var(--text-primary)]">
+                {translateUi(uiLocale, 'aslTitle')} · {bundle.signLanguageSpec.code}
+              </h3>
+              <p className="text-[11px] text-[var(--text-muted)]">
+                {bundle.signLanguageSpec.nativeName} · {bundle.signLanguageSpec.syntaxOrder.toUpperCase()} · {manualTypeStr}
+              </p>
+            </div>
             <span className="font-mono text-[11px] tabular-nums text-[var(--text-muted)]">
               {formatUi(uiLocale, 'signCounter', {
                 current: aslStepIndex + 1,
@@ -353,19 +411,19 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
               </div>
               <dl className="grid grid-cols-1 gap-1 pt-1 text-[11px]">
                 <div className="flex justify-between gap-2">
-                  <dt className="text-[var(--text-muted)]">{translateUi(uiLocale, 'handshapeLabel')}:</dt>
+                  <dt className="text-[var(--text-muted)]">{translateUi(uiLocale, 'handshapeLabel')}</dt>
                   <dd className="text-right font-medium text-[var(--text-primary)]">
                     {activeAslStep.handshape}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-[var(--text-muted)]">{translateUi(uiLocale, 'locationLabel')}:</dt>
+                  <dt className="text-[var(--text-muted)]">{translateUi(uiLocale, 'locationLabel')}</dt>
                   <dd className="text-right font-medium text-[var(--text-primary)]">
                     {activeAslStep.location}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-[var(--text-muted)]">{translateUi(uiLocale, 'movementLabel')}:</dt>
+                  <dt className="text-[var(--text-muted)]">{translateUi(uiLocale, 'movementLabel')}</dt>
                   <dd className="text-right font-medium text-[var(--text-primary)]">
                     {activeAslStep.movement}
                   </dd>
@@ -409,67 +467,6 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
           data-testid="signwriting-panel"
           className="mt-3 space-y-2.5 border-t border-[var(--border-hairline)] pt-3"
         >
-          <div className="space-y-1.5">
-            <label
-              htmlFor="sw-language-select"
-              className="block text-xs font-semibold text-[var(--text-primary)]"
-            >
-              {translateUi(uiLocale, 'swTargetLanguageLabel')}
-            </label>
-            <select
-              id="sw-language-select"
-              value={useCustomLanguage ? '__custom__' : bundle.signWriting.language.id}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === '__custom__') {
-                  setUseCustomLanguage(true);
-                  if (customLanguageDraft.trim()) {
-                    onChangeSignLanguage(customLanguageDraft.trim());
-                  }
-                } else {
-                  setUseCustomLanguage(false);
-                  onChangeSignLanguage(val);
-                }
-              }}
-              className="min-h-[36px] w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-primary)]"
-            >
-              {SIGN_LANGUAGE_PRESETS.map((lang) => (
-                <option key={lang.id} value={lang.id}>
-                  {lang.code} · {lang.nativeName}
-                </option>
-              ))}
-              <option value="__custom__">
-                {translateUi(uiLocale, 'swCustomOption')}
-              </option>
-            </select>
-
-            {useCustomLanguage && (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const next = customLanguageDraft.trim();
-                  if (next) onChangeSignLanguage(next);
-                }}
-                className="flex gap-1.5"
-              >
-                <input
-                  type="text"
-                  aria-label={translateUi(uiLocale, 'swCustomInputAria')}
-                  placeholder={translateUi(uiLocale, 'swCustomPlaceholder')}
-                  value={customLanguageDraft}
-                  onChange={(e) => setCustomLanguageDraft(e.target.value)}
-                  className="min-h-[34px] flex-1 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-2.5 py-1 text-xs text-[var(--text-primary)]"
-                />
-                <button
-                  type="submit"
-                  className="min-h-[34px] rounded-lg bg-[var(--accent-primary)] px-3 py-1 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] cursor-pointer"
-                >
-                  {translateUi(uiLocale, 'applyBtn')}
-                </button>
-              </form>
-            )}
-          </div>
-
           <SignWritingLane
             sequence={bundle.signWriting}
             direction={swDirection}

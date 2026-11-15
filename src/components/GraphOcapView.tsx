@@ -728,7 +728,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
                 {translateUi(uiLocale, 'shardedGraphTitle')}
               </h2>
               <p className="text-xs text-[var(--text-muted)]">
-                {translateUi(uiLocale, 'shardedGraphSubtitle')} ({outputChannelLabel} output active).
+                {formatUi(uiLocale, 'shardedGraphSubtitle', { channel: outputChannelLabel })}
               </p>
             </div>
             <span className="font-mono text-xs tabular-nums text-[var(--text-secondary)]">
@@ -1696,7 +1696,12 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
             </p>
           </div>
           <span className="font-mono text-xs tabular-nums text-[var(--text-secondary)]">
-            {formatUi(uiLocale, 'matchedCount', queryResult.nodes.length, nodes.length, queryResult.arcs.length, arcs.length)}
+            {formatUi(uiLocale, 'matchedCount', {
+              matchedNodes: queryResult.nodes.length,
+              totalNodes: nodes.length,
+              matchedArcs: queryResult.arcs.length,
+              totalArcs: arcs.length,
+            })}
           </span>
         </div>
 
@@ -1832,7 +1837,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
             }}
             className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
           >
-            {formatUi(uiLocale, 'selectMatchedNodes', queryResult.nodes.length)}
+            {formatUi(uiLocale, 'selectMatchedNodes', { count: queryResult.nodes.length })}
           </button>
           <button
             type="button"
@@ -1843,7 +1848,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
             }}
             className="min-h-[36px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] cursor-pointer"
           >
-            {formatUi(uiLocale, 'selectMatchedArcs', queryResult.arcs.length)}
+            {formatUi(uiLocale, 'selectMatchedArcs', { count: queryResult.arcs.length })}
           </button>
           <button
             type="button"
@@ -1876,7 +1881,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
             {translateUi(uiLocale, 'clearGroup')}
           </button>
           <span className="ml-auto font-mono text-xs text-[var(--text-muted)]">
-            {formatUi(uiLocale, 'selectedGroupCount', selectedNodeIds.length, selectedArcIds.length)}
+            {formatUi(uiLocale, 'selectedGroupCount', {
+              nodes: selectedNodeIds.length,
+              arcs: selectedArcIds.length,
+            })}
           </span>
         </div>
       </div>
@@ -1886,7 +1894,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5">
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              {formatUi(uiLocale, 'nodesDirectoryTitle', queryResult.nodes.length)}
+              {formatUi(uiLocale, 'nodesDirectoryTitle', { count: queryResult.nodes.length })}
             </h2>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full border-collapse text-left text-xs">
@@ -1993,7 +2001,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
 
           <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5">
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              {formatUi(uiLocale, 'arcsDirectoryTitle', queryResult.arcs.length)}
+              {formatUi(uiLocale, 'arcsDirectoryTitle', { count: queryResult.arcs.length })}
             </h2>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full border-collapse text-left text-xs">

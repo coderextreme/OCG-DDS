@@ -1,5 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { graphToMerkleRecords } from './core/accessibilityOutput';
+import {
+  graphToMerkleRecords,
+  resolveBrailleProfile,
+  resolveDeafblindProfile,
+} from './core/accessibilityOutput';
 import { findAccessibilityLanguageOption } from './core/accessibilityLanguages';
 import { executeAccessibleCommand } from './core/accessibleEditing';
 import { createSeedCrdtReplicas, type CrdtReplica } from './core/crdt';
@@ -9,6 +13,7 @@ import {
   type RingNode,
 } from './core/hashRing';
 import {
+  formatUi,
   resolveUiLocale,
   translateUi,
   type SupportedUiLocale,
@@ -24,6 +29,7 @@ import {
   type QuorumConfig,
   type QuorumNode,
 } from './core/quorum';
+import { resolveSignLanguage } from './core/signWriting';
 import { AccessibleEditConsole } from './components/AccessibleEditConsole';
 import { CapabilitiesView } from './components/CapabilitiesView';
 import { GraphOcapView } from './components/GraphOcapView';
@@ -46,14 +52,6 @@ function formatTimestamp(): string {
   return now.toTimeString().slice(0, 8);
 }
 
-const CHANNEL_LABELS: Record<AccessibleOutputChannel, string> = {
-  standard: 'Standard',
-  braille: 'Braille',
-  protactile: 'Protactile',
-  asl: 'ASL',
-  signwriting: 'SignWriting',
-};
-
 export default function App() {
   const [activeModule, setActiveModule] = useState<SystemModuleId>('graph');
   const [theme, setTheme] = useState<ThemeMode>('light');
@@ -61,12 +59,28 @@ export default function App() {
   const [outputChannel, setOutputChannel] = useState<AccessibleOutputChannel>('standard');
   const [uiLocale, setUiLocale] = useState<SupportedUiLocale>('en');
   const [signLanguage, setSignLanguage] = useState<string>('asl');
-  const [accessibilityProfile, setAccessibilityProfile] = useState<string>(() => {
+  const [brailleProfileId, setBrailleProfileId] = useState<string>(() => {
     try {
-      const saved = window.localStorage.getItem('ocg-dds-accessibility-profile');
-      return saved && findAccessibilityLanguageOption(saved) ? saved : 'braille-ueb';
+      const saved = window.localStorage.getItem('ocg-dds-braille-profile');
+      if (saved) return resolveBrailleProfile(saved).id;
+      const legacy = window.localStorage.getItem('ocg-dds-accessibility-profile');
+      const legacyOpt = legacy ? findAccessibilityLanguageOption(legacy) : undefined;
+      if (legacyOpt?.kind === 'braille') return legacyOpt.id;
+      return 'braille-ueb';
     } catch {
       return 'braille-ueb';
+    }
+  });
+  const [deafblindProfileId, setDeafblindProfileId] = useState<string>(() => {
+    try {
+      const saved = window.localStorage.getItem('ocg-dds-deafblind-profile');
+      if (saved) return resolveDeafblindProfile(saved).id;
+      const legacy = window.localStorage.getItem('ocg-dds-accessibility-profile');
+      const legacyOpt = legacy ? findAccessibilityLanguageOption(legacy) : undefined;
+      if (legacyOpt?.kind === 'deafblind') return legacyOpt.id;
+      return 'db-protactile';
+    } catch {
+      return 'db-protactile';
     }
   });
   const [keyboardGuideOpen, setKeyboardGuideOpen] = useState<boolean>(false);
@@ -174,11 +188,12 @@ export default function App() {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem('ocg-dds-accessibility-profile', accessibilityProfile);
+      window.localStorage.setItem('ocg-dds-braille-profile', brailleProfileId);
+      window.localStorage.setItem('ocg-dds-deafblind-profile', deafblindProfileId);
     } catch {
       // Storage may be unavailable in private or restricted browsing contexts.
     }
-  }, [accessibilityProfile]);
+  }, [brailleProfileId, deafblindProfileId]);
 
   // Sync theme, reduced motion, language, RTL/LTR direction, title, and meta description
   useEffect(() => {
@@ -338,17 +353,70 @@ export default function App() {
     setOutputChannel(channel);
   };
 
-  const handleChangeAccessibilityProfile = (profileId: string) => {
-    const profile = findAccessibilityLanguageOption(profileId);
-    if (!profile) return;
-    setAccessibilityProfile(profileId);
-    setOutputChannel(profile.outputChannel);
-    announce(
-      activeModule,
-      'info',
-      `Communication profile selected: ${profile.name}. ${profile.description} This profile is guidance and preference metadata; it does not claim automatic braille translation or sign-language interpretation.`
-    );
+  const handleSelectOutputVariant = (variantKey: string) => {
+    const sep = variantKey.indexOf(':');
+    if (sep === -1) return;
+    const channel = variantKey.slice(0, sep) as AccessibleOutputChannel;
+    const value = variantKey.slice(sep + 1);
+
+    if (channel === 'standard') {
+      const nextLocale =
+        value === 'standard' ? uiLocale : resolveUiLocale(value).code;
+      setUiLocale(nextLocale);
+      setOutputChannel('standard');
+      const spec = resolveUiLocale(nextLocale);
+      announce(
+        activeModule,
+        'info',
+        formatUi(nextLocale, 'eventChangedLanguage', {
+          language: spec.nativeName,
+          code: spec.code,
+        })
+      );
+    } else if (channel === 'braille') {
+      const profile = resolveBrailleProfile(value);
+      setBrailleProfileId(profile.id);
+      setOutputChannel('braille');
+      announce(
+        activeModule,
+        'info',
+        `Braille display profile set to ${profile.name} (${profile.code}). ${profile.description}`
+      );
+    } else if (channel === 'protactile') {
+      const profile = resolveDeafblindProfile(value);
+      setDeafblindProfileId(profile.id);
+      setOutputChannel('protactile');
+      announce(
+        activeModule,
+        'info',
+        `DeafBlind / Tactile method set to ${profile.name} (${profile.code}). ${profile.description}`
+      );
+    } else if (channel === 'asl' || channel === 'signwriting') {
+      const spec = resolveSignLanguage(value);
+      setSignLanguage(value);
+      setOutputChannel(channel);
+      announce(
+        activeModule,
+        'info',
+        `${channel === 'signwriting' ? 'SignWriting' : 'Sign Language'} switched to ${spec.name} (${spec.code}, ${spec.syntaxOrder.toUpperCase()}).`
+      );
+    }
   };
+
+  const outputChannelLabel = useMemo(() => {
+    switch (outputChannel) {
+      case 'braille':
+        return `${translateUi(uiLocale, 'channelBraille')} · ${resolveBrailleProfile(brailleProfileId).code}`;
+      case 'protactile':
+        return `${translateUi(uiLocale, 'channelProtactile')} · ${resolveDeafblindProfile(deafblindProfileId).code}`;
+      case 'asl':
+        return `${translateUi(uiLocale, 'channelAsl')} · ${resolveSignLanguage(signLanguage).code}`;
+      case 'signwriting':
+        return `${translateUi(uiLocale, 'channelSignWriting')} · ${resolveSignLanguage(signLanguage).code}`;
+      default:
+        return `${translateUi(uiLocale, 'channelStandard')} · ${resolveUiLocale(uiLocale).code.toUpperCase()}`;
+    }
+  }, [outputChannel, uiLocale, brailleProfileId, deafblindProfileId, signLanguage]);
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--bg-canvas)] text-[var(--text-primary)]">
@@ -387,11 +455,12 @@ export default function App() {
           );
         }}
         outputChannel={outputChannel}
+        brailleProfileId={brailleProfileId}
+        deafblindProfileId={deafblindProfileId}
+        signLanguage={signLanguage}
         onChangeOutputChannel={handleChangeOutputChannel}
+        onSelectOutputVariant={handleSelectOutputVariant}
         uiLocale={uiLocale}
-        onChangeUiLocale={(nextLocale) => setUiLocale(nextLocale)}
-        accessibilityProfile={accessibilityProfile}
-        onChangeAccessibilityProfile={handleChangeAccessibilityProfile}
         onOpenLanguageLab={() => {
           lastFocusedRef.current = document.activeElement as HTMLElement | null;
           setLanguageLabOpen(true);
@@ -425,7 +494,7 @@ export default function App() {
                 capabilities={capabilities}
                 activeCapabilityId={activeCapabilityId}
                 healthyShards={healthyShards}
-                outputChannelLabel={CHANNEL_LABELS[outputChannel]}
+                outputChannelLabel={outputChannelLabel}
                 uiLocale={uiLocale}
                 onChangeSelectedNodes={setSelectedNodeIds}
                 onChangeSelectedArcs={setSelectedArcIds}
@@ -502,10 +571,10 @@ export default function App() {
               latestAnnouncement={latestAnnouncement}
               outputChannel={outputChannel}
               onChangeOutputChannel={handleChangeOutputChannel}
+              brailleProfileId={brailleProfileId}
+              deafblindProfileId={deafblindProfileId}
               signLanguage={signLanguage}
-              onChangeSignLanguage={(lang) => {
-                setSignLanguage(lang);
-              }}
+              onSelectOutputVariant={handleSelectOutputVariant}
               uiLocale={uiLocale}
               events={events}
               onClearEvents={() => {
@@ -535,6 +604,8 @@ export default function App() {
         open={languageLabOpen}
         uiLocale={uiLocale}
         outputChannel={outputChannel}
+        brailleProfileId={brailleProfileId}
+        deafblindProfileId={deafblindProfileId}
         signLanguage={signLanguage}
         onChangeUiLocale={(nextLocale, pairSign) => {
           setUiLocale(nextLocale);
@@ -543,6 +614,8 @@ export default function App() {
           }
         }}
         onChangeOutputChannel={handleChangeOutputChannel}
+        onChangeBrailleProfile={setBrailleProfileId}
+        onChangeDeafblindProfile={setDeafblindProfileId}
         onChangeSignLanguage={(lang) => setSignLanguage(lang)}
         onDispatchSampleEvent={(sev, summary) => {
           announce(activeModule, sev, summary);
