@@ -7,6 +7,7 @@ export type { AccessibleOutputChannel } from '../core/accessibilityOutput';
 export interface AuditEvent {
   id: string;
   timestamp: string;
+  timestampMs?: number;
   module: SystemModuleId;
   severity: 'info' | 'warning' | 'success';
   summary: string;

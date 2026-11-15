@@ -12,6 +12,7 @@ import {
   type SignWritingDirection,
   type SignWritingSequence,
 } from './signWriting';
+import type { SupportedUiLocale } from './locales/types';
 
 export type AccessibleOutputChannel =
   | 'standard'
@@ -101,8 +102,32 @@ const BRAILLE_MAP: Record<string, string> = {
   ']': '⠨⠜',
 };
 
+function normalizeForBraille(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/ß/g, 'ss')
+    .replace(/ø/g, 'o')
+    .replace(/ł/g, 'l')
+    .replace(/đ/g, 'd')
+    .replace(/æ/g, 'ae')
+    .replace(/œ/g, 'oe')
+    .replace(/ı/g, 'i')
+    .replace(/[·•]/g, '.')
+    .replace(/[—–]/g, '-')
+    .replace(/[“”«»]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[。．]/g, '.')
+    .replace(/[，、]/g, ',')
+    .replace(/：/g, ':')
+    .replace(/；/g, ';')
+    .replace(/（/g, '(')
+    .replace(/）/g, ')')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 export function toUnicodeBraille(text: string): string {
-  const lower = text.toLowerCase();
+  const lower = normalizeForBraille(text);
   let out = '';
   for (let i = 0; i < lower.length; i++) {
     const ch = lower[i];
@@ -160,6 +185,63 @@ export function formatBrailleAnnouncement(
   return `[${prefix} ${moduleTag.toUpperCase()}] ${summary}`;
 }
 
+const PT_CONTACT_SPACE: Partial<Record<SupportedUiLocale, string>> = {
+  es: 'ESPACIO-CONTACTO: Marco táctil bimanual activo',
+  fr: 'ESPACE-CONTACT : Cadre tactile à deux mains actif',
+  de: 'KONTAKTRAUM: Zweihändiger Tastrahmen aktiv',
+  pt: 'ESPAÇO-CONTATO: Quadro tátil bimanual ativo',
+  it: 'SPAZIO-CONTATTO: Schema tattile a due mani attivo',
+  nl: 'CONTACTRUIMTE: Tweehandig tastraster actief',
+  sv: 'KONTAKTYTA: Tvåhänt taktil ram aktiv',
+  pl: 'PRZESTRZEŃ KONTAKTU: Aktywna rama oburęczna',
+  ru: 'ПРОСТРАНСТВО КОНТАКТА: Активна двуручная тактильная опора',
+  uk: 'ПРОСТІР КОНТАКТУ: Активна дворучна тактильна опора',
+  ar: 'مساحة التلامس: إطار اللمس ثنائي اليدين نشط',
+  he: 'מרחב מגע: מסגרת מגע דו-ידנית פעילה',
+  tr: 'TEMAS ALANI: Çift el dokunsal çerçeve etkin',
+  hi: 'संपर्क क्षेत्र: द्वि-हस्त स्पर्श फ्रेम सक्रिय',
+  bn: 'স্পর্শ ক্ষেত্র: দুই হাতের স্পর্শ কাঠামো সক্রিয়',
+  'zh-Hans': '接触空间：双手触觉基准框架已激活',
+  'zh-Hant': '接觸空間：雙手觸覺基準框架已啟用',
+  ja: '接触空間: 両手触覚フレーム有効',
+  ko: '접촉 공간: 양손 촉각 프레임 활성화됨',
+  vi: 'KHÔNG GIAN TIẾP XÚC: Khung xúc giác hai tay đang bật',
+  id: 'RUANG KONTAK: Bingkai taktil dua tangan aktif',
+  sw: 'NAFASI YA MGUSO: Fremu ya mikono miwili iko tayari',
+  eo: 'KONTAKTA SPACO: Duman-palpa kadro aktiva',
+};
+
+const GUARD_LABELS: Partial<
+  Record<
+    SupportedUiLocale,
+    { revoked: string; lockedPrefix: string; rwd: string; rw: string; ro: string }
+  >
+> = {
+  es: { revoked: 'Revocado', lockedPrefix: 'Bloqueado', rwd: 'Leer/Escribir/Borrar', rw: 'Leer/Escribir', ro: 'Solo lectura' },
+  fr: { revoked: 'Révoqué', lockedPrefix: 'Verrouillé', rwd: 'Lire/Écrire/Suppr.', rw: 'Lire/Écrire', ro: 'Lecture seule' },
+  de: { revoked: 'Widerrufen', lockedPrefix: 'Gesperrt', rwd: 'Lesen/Schr./Löschen', rw: 'Lesen/Schreiben', ro: 'Nur Lesen' },
+  pt: { revoked: 'Revogado', lockedPrefix: 'Bloqueado', rwd: 'Ler/Gravar/Excluir', rw: 'Ler/Gravar', ro: 'Somente leitura' },
+  it: { revoked: 'Revocato', lockedPrefix: 'Bloccato', rwd: 'Leggi/Scrivi/Elim.', rw: 'Leggi/Scrivi', ro: 'Solo lettura' },
+  nl: { revoked: 'Ingetrokken', lockedPrefix: 'Vergrendeld', rwd: 'Lezen/Schr./Verw.', rw: 'Lezen/Schrijven', ro: 'Alleen lezen' },
+  sv: { revoked: 'Återkallad', lockedPrefix: 'Låst', rwd: 'Läs/Skriv/Ta bort', rw: 'Läs/Skriv', ro: 'Endast läsning' },
+  pl: { revoked: 'Odwołany', lockedPrefix: 'Zablokowany', rwd: 'Odczyt/Zapis/Usuń', rw: 'Odczyt/Zapis', ro: 'Tylko odczyt' },
+  ru: { revoked: 'Отозван', lockedPrefix: 'Ограничен', rwd: 'Чтение/Запись/Удал.', rw: 'Чтение/Запись', ro: 'Только чтение' },
+  uk: { revoked: 'Відкликано', lockedPrefix: 'Обмежено', rwd: 'Читання/Запис/Вид.', rw: 'Читання/Запис', ro: 'Лише читання' },
+  ar: { revoked: 'مبطل', lockedPrefix: 'مقيد', rwd: 'قراءة/كتابة/حذف', rw: 'قراءة/كتابة', ro: 'قراءة فقط' },
+  he: { revoked: 'מבוטל', lockedPrefix: 'מוגבל', rwd: 'קריאה/כתיבה/מחיקה', rw: 'קריאה/כתיבה', ro: 'קריאה בלבד' },
+  tr: { revoked: 'İptal Edildi', lockedPrefix: 'Kilitli', rwd: 'Oku/Yaz/Sil', rw: 'Oku/Yaz', ro: 'Salt Okunur' },
+  hi: { revoked: 'रद्द', lockedPrefix: 'लॉक', rwd: 'पढ़ें/लिखें/हटाएँ', rw: 'पढ़ें/लिखें', ro: 'केवल पढ़ने योग्य' },
+  bn: { revoked: 'বাতিল', lockedPrefix: 'সীমাবদ্ধ', rwd: 'পড়া/লেখা/মোছা', rw: 'পড়া/লেখা', ro: 'শুধু পড়া' },
+  'zh-Hans': { revoked: '已吊销', lockedPrefix: '已锁定', rwd: '读/写/删', rw: '读/写', ro: '只读' },
+  'zh-Hant': { revoked: '已撤銷', lockedPrefix: '已鎖定', rwd: '讀/寫/刪', rw: '讀/寫', ro: '唯讀' },
+  ja: { revoked: '失効', lockedPrefix: '制限中', rwd: '読取/書込/削除', rw: '読取/書込', ro: '読取専用' },
+  ko: { revoked: '철회됨', lockedPrefix: '잠김', rwd: '읽기/쓰기/삭제', rw: '읽기/쓰기', ro: '읽기 전용' },
+  vi: { revoked: 'Đã thu hồi', lockedPrefix: 'Bị khóa', rwd: 'Đọc/Ghi/Xóa', rw: 'Đọc/Ghi', ro: 'Chỉ đọc' },
+  id: { revoked: 'Dicabut', lockedPrefix: 'Terkunci', rwd: 'Baca/Tulis/Hapus', rw: 'Baca/Tulis', ro: 'Hanya Baca' },
+  sw: { revoked: 'Imebatilishwa', lockedPrefix: 'Imefungwa', rwd: 'Soma/Andika/Futa', rw: 'Soma/Andika', ro: 'Kusoma tu' },
+  eo: { revoked: 'Revokita', lockedPrefix: 'Ŝlosita', rwd: 'Legi/Skribi/Forigi', rw: 'Legi/Skribi', ro: 'Nurlega' },
+};
+
 /**
  * Translates a distributed graph/system event into Protactile Language (PT)
  * contact-space notation, topographic tracing, backchannel cues, and haptic pulse patterns.
@@ -167,7 +249,8 @@ export function formatBrailleAnnouncement(
 export function formatProtactileCue(
   moduleTag: string,
   severity: 'info' | 'warning' | 'success',
-  summary: string
+  summary: string,
+  uiLocale: SupportedUiLocale = 'en'
 ): ProtactileCue {
   const lower = summary.toLowerCase();
   const shardMatch = summary.match(/Shard-[ABC]/i)?.[0]?.toUpperCase();
@@ -178,7 +261,7 @@ export function formatProtactileCue(
         ? 'Center Palm / Wrist Anchor (Zone B)'
         : shardMatch === 'SHARD-C'
           ? 'Right Forearm Anchor (Zone C)'
-          : `Contact Canvas (${moduleTag.toUpperCase()})`;
+          : `${uiLocale === 'en' ? 'Contact Canvas' : 'PT'} (${moduleTag.toUpperCase()})`;
 
   let topographicTrace = `TRACE: Steady point press for "${summary}"`;
   if (lower.includes('arc') || summary.includes('->')) {
@@ -213,7 +296,8 @@ export function formatProtactileCue(
         : [90];
 
   return {
-    contactSetup: 'CONTACT-SPACE: Grounded two-hand frame active',
+    contactSetup:
+      PT_CONTACT_SPACE[uiLocale] ?? 'CONTACT-SPACE: Grounded two-hand frame active',
     spatialZone,
     topographicTrace,
     backchannel,
@@ -385,12 +469,13 @@ export function buildAccessibleEventBundle(
   severity: 'info' | 'warning' | 'success',
   summary: string,
   signLanguage: string = 'asl',
-  signWritingDirection?: SignWritingDirection
+  signWritingDirection?: SignWritingDirection,
+  uiLocale: SupportedUiLocale = 'en'
 ): AccessibleEventBundle {
   const brailleCompact = formatBrailleAnnouncement(moduleTag, severity, summary);
   const brailleLines = chunkForBrailleCells(brailleCompact, 40);
   const brailleDots = brailleLines.map((line) => toUnicodeBraille(line));
-  const protactile = formatProtactileCue(moduleTag, severity, summary);
+  const protactile = formatProtactileCue(moduleTag, severity, summary, uiLocale);
   const asl = formatAslOutput(moduleTag, severity, summary);
   const signWriting = formatSignWritingOutput(
     moduleTag,
@@ -415,7 +500,8 @@ export function describeGraphNodeAccessibility(
   node: GraphNode,
   arcs: GraphArc[],
   activeCap: CapabilityToken | undefined,
-  allCaps: CapabilityToken[]
+  allCaps: CapabilityToken[],
+  uiLocale: SupportedUiLocale = 'en'
 ): {
   canUpdate: boolean;
   canDelete: boolean;
@@ -432,12 +518,18 @@ export function describeGraphNodeAccessibility(
   const outgoingCount = arcs.filter((a) => a.source === node.id).length;
   const incomingCount = arcs.filter((a) => a.target === node.id).length;
 
-  let guardLabel = 'Revoked';
+  const localized = GUARD_LABELS[uiLocale];
+  let guardLabel = localized?.revoked ?? 'Revoked';
   if (active) {
-    if (!inScope) guardLabel = `Locked (${activeCap?.scope} only)`;
-    else if (canUpdate && canDelete) guardLabel = 'Read/Write/Delete';
-    else if (canUpdate) guardLabel = 'Read/Write';
-    else guardLabel = 'Read-Only';
+    if (!inScope) {
+      guardLabel = `${localized?.lockedPrefix ?? 'Locked'} (${activeCap?.scope})`;
+    } else if (canUpdate && canDelete) {
+      guardLabel = localized?.rwd ?? 'Read/Write/Delete';
+    } else if (canUpdate) {
+      guardLabel = localized?.rw ?? 'Read/Write';
+    } else {
+      guardLabel = localized?.ro ?? 'Read-Only';
+    }
   }
 
   return {

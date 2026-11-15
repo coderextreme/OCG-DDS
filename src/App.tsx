@@ -8,6 +8,11 @@ import {
   type RingNode,
 } from './core/hashRing';
 import {
+  resolveUiLocale,
+  translateUi,
+  type SupportedUiLocale,
+} from './core/i18n';
+import {
   createSeedOcapGraphState,
   type CapabilityToken,
   type GraphArc,
@@ -23,6 +28,7 @@ import { CapabilitiesView } from './components/CapabilitiesView';
 import { GraphOcapView } from './components/GraphOcapView';
 import { HashRingView } from './components/HashRingView';
 import { KeyboardGuideDialog } from './components/KeyboardGuideDialog';
+import { LanguageTestDialog } from './components/LanguageTestDialog';
 import { LiveAnnouncerPanel } from './components/LiveAnnouncerPanel';
 import { SyncQuorumView } from './components/SyncQuorumView';
 import { TopBar } from './components/TopBar';
@@ -52,8 +58,10 @@ export default function App() {
   const [theme, setTheme] = useState<ThemeMode>('light');
   const [reducedMotion, setReducedMotion] = useState<boolean>(false);
   const [outputChannel, setOutputChannel] = useState<AccessibleOutputChannel>('standard');
+  const [uiLocale, setUiLocale] = useState<SupportedUiLocale>('en');
   const [signLanguage, setSignLanguage] = useState<string>('asl');
   const [keyboardGuideOpen, setKeyboardGuideOpen] = useState<boolean>(false);
+  const [languageLabOpen, setLanguageLabOpen] = useState<boolean>(false);
   const [editConsoleFocusSignal, setEditConsoleFocusSignal] = useState<number>(0);
   const lastFocusedRef = useRef<HTMLElement | null>(null);
 
@@ -153,7 +161,7 @@ export default function App() {
     []
   );
 
-  // Sync theme & reduced motion classes on documentElement
+  // Sync theme, reduced motion, language, and RTL/LTR direction on documentElement
   useEffect(() => {
     const root = document.documentElement;
     root.classList.remove('dark', 'high-contrast', 'reduced-motion');
@@ -165,7 +173,10 @@ export default function App() {
     if (reducedMotion) {
       root.classList.add('reduced-motion');
     }
-  }, [theme, reducedMotion]);
+    const localeSpec = resolveUiLocale(uiLocale);
+    root.lang = localeSpec.code;
+    root.dir = localeSpec.dir;
+  }, [theme, reducedMotion, uiLocale]);
 
   // Global keyboard shortcuts (Alt+1..4 module switching, ? for Keyboard Guide)
   useEffect(() => {
@@ -315,6 +326,7 @@ export default function App() {
 
       <TopBar
         activeModule={activeModule}
+        uiLocale={uiLocale}
         onSelectModule={(mod) => {
           setActiveModule(mod);
           announce(mod, 'info', `Switched active view to ${mod.toUpperCase()} module.`);
@@ -340,6 +352,12 @@ export default function App() {
         }}
         outputChannel={outputChannel}
         onChangeOutputChannel={handleChangeOutputChannel}
+        uiLocale={uiLocale}
+        onChangeUiLocale={(nextLocale) => setUiLocale(nextLocale)}
+        onOpenLanguageLab={() => {
+          lastFocusedRef.current = document.activeElement as HTMLElement | null;
+          setLanguageLabOpen(true);
+        }}
         onResetCluster={handleResetCluster}
       />
 
@@ -350,6 +368,7 @@ export default function App() {
       >
         <AccessibleEditConsole
           outputChannel={outputChannel}
+          uiLocale={uiLocale}
           nodeIds={graphNodes.map((n) => n.id)}
           arcIds={graphArcs.map((a) => a.id)}
           capabilityIds={capabilities.map((c) => c.id)}
@@ -369,6 +388,7 @@ export default function App() {
                 activeCapabilityId={activeCapabilityId}
                 healthyShards={healthyShards}
                 outputChannelLabel={CHANNEL_LABELS[outputChannel]}
+                uiLocale={uiLocale}
                 onChangeSelectedNodes={setSelectedNodeIds}
                 onChangeSelectedArcs={setSelectedArcIds}
                 onUpdateGraph={(nextNodes, nextArcs) => {
@@ -445,6 +465,7 @@ export default function App() {
               onChangeSignLanguage={(lang) => {
                 setSignLanguage(lang);
               }}
+              uiLocale={uiLocale}
               events={events}
               onClearEvents={() => {
                 setEvents([]);
@@ -458,7 +479,7 @@ export default function App() {
 
       <footer className="border-t border-[var(--border-hairline)] bg-[var(--bg-surface)] py-4">
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-2 px-4 text-xs text-[var(--text-muted)] sm:px-6">
-          <span>Lattice · Accessible Distributed Graph &amp; Object-Capability System</span>
+          <span>{translateUi(uiLocale, 'footerSystem')}</span>
           <span>Braille · Protactile · ASL · International SignWriting · Zero-audio dependency</span>
         </div>
       </footer>
@@ -466,6 +487,30 @@ export default function App() {
       <KeyboardGuideDialog
         open={keyboardGuideOpen}
         onClose={handleCloseKeyboardGuide}
+      />
+
+      <LanguageTestDialog
+        open={languageLabOpen}
+        uiLocale={uiLocale}
+        outputChannel={outputChannel}
+        signLanguage={signLanguage}
+        onChangeUiLocale={(nextLocale, pairSign) => {
+          setUiLocale(nextLocale);
+          if (pairSign) {
+            setSignLanguage(resolveUiLocale(nextLocale).recommendedSignLanguage);
+          }
+        }}
+        onChangeOutputChannel={handleChangeOutputChannel}
+        onChangeSignLanguage={(lang) => setSignLanguage(lang)}
+        onDispatchSampleEvent={(sev, summary) => {
+          announce(activeModule, sev, summary);
+        }}
+        onClose={() => {
+          setLanguageLabOpen(false);
+          setTimeout(() => {
+            lastFocusedRef.current?.focus();
+          }, 0);
+        }}
       />
     </div>
   );

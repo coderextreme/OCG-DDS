@@ -39,3 +39,57 @@ As for other accessiblity, I don't know yet.
 
 ## Caveats
 I don't know if this is actually live or the graph is stored at this point.  So far, I have the front end kind of working.  The code needs to be reviewed for vulnerabilities
+
+*(Technical note on current build: graph, CRDT replica, hash ring, quorum, and OCap state runs deterministically in browser memory for the current session without remote persistence. Keyboard/screen-reader navigation, 40-cell Braille output, 6-dot Perkins chord input `F D S / J K L`, Protactile cues & haptics, ASL Gloss/Builder, and Sutton SignWriting `FSW`/`SWU`/2D SVG outputs are implemented and open for community testing.)*
+
+---
+
+## Community & Accessibility Guides
+- [Blind & Screen Reader Guide (NVDA / JAWS / VoiceOver / Orca)](./docs/communities/BLIND_AND_SCREEN_READER.md)
+- [Deaf-Blind & Protactile (PT) Accessibility Guide](./docs/communities/DEAF_BLIND_AND_PROTACTILE.md)
+- [Protactile (PT) Contact-Space README](./docs/communities/README.pt-tactile.md)
+- [Deaf & Signing Community Guide (ASL & Visual-First)](./docs/communities/DEAF_AND_SIGNING.md)
+- [Sutton SignWriting Guide & International Sign Languages](./docs/communities/SIGNWRITING_GUIDE.md)
+
+## Braille Editions
+- [English README in Braille](./README.braille)
+- [Full Keyboard & Operations User Guide in UEB Grade-1 Braille](./docs/braille/USER_GUIDE.ueb.braille)
+- [Español en Braille](./docs/braille/README.es.braille)
+- [Français en Braille](./docs/braille/README.fr.braille)
+- [Deutsch in Brailleschrift](./docs/braille/README.de.braille)
+
+## SignWriting Editions (FSW + Unicode SWU + Gloss)
+- [ASL SignWriting (`ASE`) — American Sign Language](./docs/signwriting/README.sw-ase.md)
+- [BSL SignWriting (`BFI`) — British Sign Language](./docs/signwriting/README.sw-bfi.md)
+- [LSF SignWriting (`FSL`) — Langue des Signes Française](./docs/signwriting/README.sw-fsl-lsf.md)
+- [DGS SignWriting (`GSG`) — Deutsche Gebärdensprache](./docs/signwriting/README.sw-gsg.md)
+- [LIBRAS SignWriting (`BZS`) — Língua Brasileira de Sinais](./docs/signwriting/README.sw-bzs.md)
+- [JSL SignWriting (`JSL`) — 日本手話 (Japanese Sign Language)](./docs/signwriting/README.sw-jsl.md)
+- [IS SignWriting (`ILS`) — International Sign](./docs/signwriting/README.sw-ils.md)
+
+## Spoken & Written Language Translations
+| Language | Native Name | Documentation |
+| :--- | :--- | :--- |
+| Arabic | العربية | [docs/i18n/README.ar.md](./docs/i18n/README.ar.md) |
+| Bengali | বাংলা | [docs/i18n/README.bn.md](./docs/i18n/README.bn.md) |
+| Chinese (Simplified) | 简体中文 | [docs/i18n/README.zh-Hans.md](./docs/i18n/README.zh-Hans.md) |
+| Chinese (Traditional) | 繁體中文 | [docs/i18n/README.zh-Hant.md](./docs/i18n/README.zh-Hant.md) |
+| Dutch | Nederlands | [docs/i18n/README.nl.md](./docs/i18n/README.nl.md) |
+| Esperanto | Esperanto | [docs/i18n/README.eo.md](./docs/i18n/README.eo.md) |
+| French | Français | [docs/i18n/README.fr.md](./docs/i18n/README.fr.md) |
+| German | Deutsch | [docs/i18n/README.de.md](./docs/i18n/README.de.md) |
+| Hebrew | עברית | [docs/i18n/README.he.md](./docs/i18n/README.he.md) |
+| Hindi | हिन्दी | [docs/i18n/README.hi.md](./docs/i18n/README.hi.md) |
+| Indonesian | Bahasa Indonesia | [docs/i18n/README.id.md](./docs/i18n/README.id.md) |
+| Italian | Italiano | [docs/i18n/README.it.md](./docs/i18n/README.it.md) |
+| Japanese | 日本語 | [docs/i18n/README.ja.md](./docs/i18n/README.ja.md) |
+| Korean | 한국어 | [docs/i18n/README.ko.md](./docs/i18n/README.ko.md) |
+| Polish | Polski | [docs/i18n/README.pl.md](./docs/i18n/README.pl.md) |
+| Portuguese | Português | [docs/i18n/README.pt.md](./docs/i18n/README.pt.md) |
+| Russian | Русский | [docs/i18n/README.ru.md](./docs/i18n/README.ru.md) |
+| Spanish | Español | [docs/i18n/README.es.md](./docs/i18n/README.es.md) |
+| Swahili | Kiswahili | [docs/i18n/README.sw.md](./docs/i18n/README.sw.md) |
+| Swedish | Svenska | [docs/i18n/README.sv.md](./docs/i18n/README.sv.md) |
+| Turkish | Türkçe | [docs/i18n/README.tr.md](./docs/i18n/README.tr.md) |
+| Ukrainian | Українська | [docs/i18n/README.uk.md](./docs/i18n/README.uk.md) |
+| Vietnamese | Tiếng Việt | [docs/i18n/README.vi.md](./docs/i18n/README.vi.md) |

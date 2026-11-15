@@ -13,12 +13,14 @@ import {
   dotsToBrailleCell,
   fromUnicodeBraille,
 } from '../core/accessibleEditing';
+import { translateUi, type SupportedUiLocale } from '../core/i18n';
 import type { AccessibleOutputChannel } from '../types/system';
 
 type InputModality = 'command' | 'braille' | 'asl-pt';
 
 interface AccessibleEditConsoleProps {
   outputChannel: AccessibleOutputChannel;
+  uiLocale?: SupportedUiLocale;
   nodeIds: string[];
   arcIds: string[];
   capabilityIds: string[];
@@ -52,6 +54,7 @@ const QUICK_TEMPLATES: Array<{ label: string; command: string }> = [
 
 export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
   outputChannel,
+  uiLocale = 'en',
   nodeIds,
   arcIds,
   capabilityIds,
@@ -215,7 +218,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
         <div className="flex items-center gap-2">
           <Terminal className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
           <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-            Multi-Modal Edit Console (Screen Reader · Braille · Protactile · ASL)
+            {translateUi(uiLocale, 'editConsoleTitle')}
           </h2>
         </div>
 
@@ -299,7 +302,7 @@ export const AccessibleEditConsole: React.FC<AccessibleEditConsoleProps> = ({
                   className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg bg-[var(--accent-primary)] px-4 py-2 text-xs font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] whitespace-nowrap cursor-pointer"
                 >
                   <Play className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Execute Edit</span>
+                  <span>{translateUi(uiLocale, 'executeEdit')}</span>
                 </button>
               </form>
 

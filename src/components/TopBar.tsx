@@ -1,22 +1,29 @@
 import React from 'react';
 import { Keyboard } from 'lucide-react';
+import {
+  translateUi,
+  type SupportedUiLocale,
+  type UiMessageKey,
+} from '../core/i18n';
 import type { SystemModuleId } from '../types/system';
 
 interface TopBarProps {
   activeModule: SystemModuleId;
+  uiLocale: SupportedUiLocale;
   onSelectModule: (module: SystemModuleId) => void;
   onOpenKeyboardGuide: () => void;
 }
 
-const NAV_ITEMS: Array<{ id: SystemModuleId; label: string }> = [
-  { id: 'graph', label: 'Graph Workspace' },
-  { id: 'sync', label: 'Sync & Quorum' },
-  { id: 'sharding', label: 'Hash Sharding' },
-  { id: 'capabilities', label: 'Capabilities' },
+const NAV_ITEMS: Array<{ id: SystemModuleId; key: UiMessageKey }> = [
+  { id: 'graph', key: 'navGraph' },
+  { id: 'sync', key: 'navSync' },
+  { id: 'sharding', key: 'navSharding' },
+  { id: 'capabilities', key: 'navCapabilities' },
 ];
 
 export const TopBar: React.FC<TopBarProps> = ({
   activeModule,
+  uiLocale,
   onSelectModule,
   onOpenKeyboardGuide,
 }) => {
@@ -53,7 +60,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
               >
-                {item.label}
+                {translateUi(uiLocale, item.key)}
                 {isActive && (
                   <span
                     aria-hidden="true"
@@ -73,7 +80,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             className="inline-flex min-h-[38px] md:min-h-[40px] items-center gap-2 rounded-lg bg-[var(--accent-primary)] px-3.5 py-2 text-xs sm:text-sm font-semibold text-[var(--accent-text-on)] hover:bg-[var(--accent-primary-hover)] whitespace-nowrap shrink-0 cursor-pointer"
           >
             <Keyboard className="h-4 w-4" aria-hidden="true" />
-            <span>Keyboard Guide</span>
+            <span>{translateUi(uiLocale, 'keyboardGuide')}</span>
           </button>
         </div>
       </div>

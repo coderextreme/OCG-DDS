@@ -18,6 +18,7 @@ import {
   assignShardByConsistentHash,
   describeGraphNodeAccessibility,
 } from '../core/accessibilityOutput';
+import { translateUi, type SupportedUiLocale } from '../core/i18n';
 import {
   executeGraphBatch,
   isCapabilityActive,
@@ -39,6 +40,7 @@ interface GraphOcapViewProps {
   activeCapabilityId: string;
   healthyShards: Array<'Shard-A' | 'Shard-B' | 'Shard-C'>;
   outputChannelLabel: string;
+  uiLocale?: SupportedUiLocale;
   onChangeSelectedNodes: React.Dispatch<React.SetStateAction<string[]>>;
   onChangeSelectedArcs: React.Dispatch<React.SetStateAction<string[]>>;
   onUpdateGraph: (nodes: GraphNode[], arcs: GraphArc[]) => void;
@@ -77,6 +79,7 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
   activeCapabilityId,
   healthyShards,
   outputChannelLabel,
+  uiLocale = 'en',
   onChangeSelectedNodes,
   onChangeSelectedArcs,
   onUpdateGraph,
@@ -618,10 +621,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
             id="graph-ocap-heading"
             className="text-2xl font-bold tracking-tight text-[var(--text-primary)]"
           >
-            Distributed Graph Workspace
+            {translateUi(uiLocale, 'graphWorkspaceTitle')}
           </h1>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Edit sharded nodes and directed arcs in groups or atomic batches with live Object-Capability enforcement across {SHARD_LIST.length} shards.
+            {translateUi(uiLocale, 'graphWorkspaceSubtitle')}
           </p>
         </div>
 
@@ -711,7 +714,10 @@ export const GraphOcapView: React.FC<GraphOcapViewProps> = ({
       {/* Main Workspace: Sharded Topology + Group/Batch Action Deck */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Left: Visual Shard Zones & OCap Guarded Graph SVG + Linear Summary */}
-        <div className="lg:col-span-7 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 space-y-4">
+        <div
+          dir="ltr"
+          className="lg:col-span-7 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 space-y-4"
+        >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-base font-semibold text-[var(--text-primary)]">

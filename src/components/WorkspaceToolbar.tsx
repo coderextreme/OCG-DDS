@@ -2,12 +2,18 @@ import React from 'react';
 import {
   Accessibility,
   Contrast,
+  Globe,
   Hand,
   Moon,
   RotateCcw,
   Sun,
   VolumeX,
 } from 'lucide-react';
+import {
+  translateUi,
+  UI_LOCALES,
+  type SupportedUiLocale,
+} from '../core/i18n';
 import type { AccessibleOutputChannel, ThemeMode } from '../types/system';
 
 interface WorkspaceToolbarProps {
@@ -17,6 +23,9 @@ interface WorkspaceToolbarProps {
   onToggleReducedMotion: () => void;
   outputChannel: AccessibleOutputChannel;
   onChangeOutputChannel: (channel: AccessibleOutputChannel) => void;
+  uiLocale: SupportedUiLocale;
+  onChangeUiLocale: (locale: SupportedUiLocale) => void;
+  onOpenLanguageLab: () => void;
   onResetCluster: () => void;
 }
 
@@ -48,43 +57,80 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
   onToggleReducedMotion,
   outputChannel,
   onChangeOutputChannel,
+  uiLocale,
+  onChangeUiLocale,
+  onOpenLanguageLab,
   onResetCluster,
 }) => {
   return (
     <div className="border-b border-[var(--border-hairline)] bg-[var(--bg-subtle)]">
       <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
-        {/* Display Contrast Selector */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span
-            className="text-xs font-medium text-[var(--text-muted)]"
-            id="theme-group-label"
-          >
-            Display Contrast
-          </span>
-          <div
-            role="group"
-            aria-labelledby="theme-group-label"
-            className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-0.5"
-          >
-            {THEME_OPTIONS.map(({ id, label, Icon }) => {
-              const selected = theme === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => onChangeTheme(id)}
-                  aria-pressed={selected}
-                  className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap shrink-0 cursor-pointer ${
-                    selected
-                      ? 'bg-[var(--accent-primary)] text-[var(--accent-text-on)] font-semibold'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" aria-hidden={true} />
-                  <span>{label}</span>
-                </button>
-              );
-            })}
+        {/* Display Contrast Selector + Language Quick Selector */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className="text-xs font-medium text-[var(--text-muted)]"
+              id="theme-group-label"
+            >
+              {translateUi(uiLocale, 'displayContrast')}
+            </span>
+            <div
+              role="group"
+              aria-labelledby="theme-group-label"
+              className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-0.5"
+            >
+              {THEME_OPTIONS.map(({ id, label, Icon }) => {
+                const selected = theme === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => onChangeTheme(id)}
+                    aria-pressed={selected}
+                    className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap shrink-0 cursor-pointer ${
+                      selected
+                        ? 'bg-[var(--accent-primary)] text-[var(--accent-text-on)] font-semibold'
+                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" aria-hidden={true} />
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            <label
+              htmlFor="toolbar-ui-locale"
+              className="inline-flex items-center gap-1 text-xs font-medium text-[var(--text-muted)]"
+            >
+              <Globe className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{translateUi(uiLocale, 'languageLabel')}</span>
+            </label>
+            <select
+              id="toolbar-ui-locale"
+              aria-label="Interface Language"
+              value={uiLocale}
+              onChange={(e) =>
+                onChangeUiLocale(e.target.value as SupportedUiLocale)
+              }
+              className="min-h-[38px] max-w-[175px] rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-primary)] cursor-pointer"
+            >
+              {UI_LOCALES.map((loc) => (
+                <option key={loc.code} value={loc.code}>
+                  {loc.nativeName} ({loc.code})
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={onOpenLanguageLab}
+              className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs font-semibold text-[var(--accent-primary)] hover:bg-[var(--bg-canvas)] whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <span>{translateUi(uiLocale, 'testLanguages')}</span>
+            </button>
           </div>
         </div>
 
@@ -100,7 +146,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
               ) : (
                 <Accessibility className="h-3.5 w-3.5" aria-hidden="true" />
               )}
-              <span>Output Channel</span>
+              <span>{translateUi(uiLocale, 'outputChannel')}</span>
             </span>
             <div
               role="group"
@@ -139,7 +185,11 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
             }`}
           >
             <VolumeX className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{reducedMotion ? 'Motion: Reduced' : 'Motion: Standard'}</span>
+            <span>
+              {reducedMotion
+                ? translateUi(uiLocale, 'motionReduced')
+                : translateUi(uiLocale, 'motionStandard')}
+            </span>
           </button>
 
           <button
@@ -148,7 +198,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
             className="inline-flex min-h-[38px] items-center gap-2 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] whitespace-nowrap shrink-0 cursor-pointer"
           >
             <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Reset Cluster</span>
+            <span>{translateUi(uiLocale, 'resetCluster')}</span>
           </button>
         </div>
       </div>

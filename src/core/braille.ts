@@ -53,8 +53,32 @@ const BRAILLE_MAP: Record<string, string> = {
   ']': '⠨⠜',
 };
 
+function normalizeForBraille(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/ß/g, 'ss')
+    .replace(/ø/g, 'o')
+    .replace(/ł/g, 'l')
+    .replace(/đ/g, 'd')
+    .replace(/æ/g, 'ae')
+    .replace(/œ/g, 'oe')
+    .replace(/ı/g, 'i')
+    .replace(/[·•]/g, '.')
+    .replace(/[—–]/g, '-')
+    .replace(/[“”«»]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[。．]/g, '.')
+    .replace(/[，、]/g, ',')
+    .replace(/：/g, ':')
+    .replace(/；/g, ';')
+    .replace(/（/g, '(')
+    .replace(/）/g, ')')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 export function toUnicodeBraille(text: string): string {
-  const lower = text.toLowerCase();
+  const lower = normalizeForBraille(text);
   let out = '';
   for (let i = 0; i < lower.length; i++) {
     const ch = lower[i];

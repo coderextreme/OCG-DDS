@@ -13,6 +13,7 @@ import {
   buildAccessibleEventBundle,
   type AccessibleOutputChannel,
 } from '../core/accessibilityOutput';
+import { translateUi, type SupportedUiLocale } from '../core/i18n';
 import {
   SIGN_LANGUAGE_PRESETS,
   type SignWritingDirection,
@@ -28,6 +29,7 @@ interface LiveAnnouncerPanelProps {
   onChangeOutputChannel: (channel: AccessibleOutputChannel) => void;
   signLanguage: string;
   onChangeSignLanguage: (lang: string) => void;
+  uiLocale?: SupportedUiLocale;
   events: AuditEvent[];
   onClearEvents: () => void;
 }
@@ -59,6 +61,7 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
   onChangeOutputChannel,
   signLanguage,
   onChangeSignLanguage,
+  uiLocale = 'en',
   events,
   onClearEvents,
 }) => {
@@ -68,12 +71,25 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
   const [swDirection, setSwDirection] = useState<SignWritingDirection>('vertical');
 
   const isPresetLanguage = SIGN_LANGUAGE_PRESETS.some(
-    (p) => p.id === signLanguage.toLowerCase()
+    (p) => p.id.toLowerCase() === signLanguage.toLowerCase()
   );
   const [useCustomLanguage, setUseCustomLanguage] = useState<boolean>(!isPresetLanguage);
   const [customLanguageDraft, setCustomLanguageDraft] = useState<string>(
     isPresetLanguage ? '' : signLanguage
   );
+
+  // Sync selector mode when signLanguage changes externally (e.g. from LanguageTestDialog)
+  useEffect(() => {
+    const matchesPreset = SIGN_LANGUAGE_PRESETS.some(
+      (p) => p.id.toLowerCase() === signLanguage.toLowerCase()
+    );
+    if (matchesPreset) {
+      setUseCustomLanguage(false);
+    } else {
+      setUseCustomLanguage(true);
+      setCustomLanguageDraft(signLanguage);
+    }
+  }, [signLanguage]);
 
   const bundle = useMemo(
     () =>
@@ -133,10 +149,10 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
       <div className="flex items-center justify-between gap-3 border-b border-[var(--border-hairline)] pb-3">
         <div>
           <h2 className="text-base font-semibold text-[var(--text-primary)]">
-            Accessible Event Output
+            {translateUi(uiLocale, 'eventOutputTitle')}
           </h2>
           <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-            Screen reader, Braille, Protactile, ASL &amp; SignWriting
+            {translateUi(uiLocale, 'eventOutputSubtitle')}
           </p>
         </div>
         <button
@@ -147,7 +163,7 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
           className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer disabled:cursor-not-allowed"
         >
           <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-          <span>Clear</span>
+          <span>{translateUi(uiLocale, 'clearLog')}</span>
         </button>
       </div>
 
@@ -459,7 +475,7 @@ export const LiveAnnouncerPanel: React.FC<LiveAnnouncerPanelProps> = ({
       {/* Chronological event feed */}
       <div className="mt-4 border-t border-[var(--border-hairline)] pt-3">
         <div className="mb-2 flex items-center justify-between text-xs text-[var(--text-muted)]">
-          <span>Operation Log</span>
+          <span>{translateUi(uiLocale, 'operationLog')}</span>
           <span className="font-mono tabular-nums">{events.length} events</span>
         </div>
 
