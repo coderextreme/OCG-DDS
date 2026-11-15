@@ -48,8 +48,39 @@ Select **SignWriting** (`SignW`) in **Output Channel** to translate live cluster
   - `LSM` (Lengua de Señas Mexicana · Topic-Comment · 1H)
   - `Auslan` (Australian Sign Language · Topic-Comment · 2H)
   - `IS` (International Sign · Topic-Comment · 1H)
+  - `NZSL` (New Zealand Sign Language)
+  - `CSL` (Chinese Sign Language)
+  - `TSL` (Taiwan Sign Language)
+  - `KSL` (Kenyan Sign Language)
+  - `SASL` (South African Sign Language)
+  - `ISL-IN` (Indo-Pakistani Sign Language)
+  - `BdSL` (Bangladeshi Sign Language)
+  - `LIS` (Italian Sign Language)
+  - `NGT` (Sign Language of the Netherlands)
+  - `STS` (Swedish Sign Language)
+  - `PJM` (Polish Sign Language)
+  - `ISL-IE` (Irish Sign Language)
 - **Any Custom International Sign Language:** Choose **`Custom Sign Language (Any ISO 639-3 / Name)...`**, enter any language code or name (such as `KSL`, `FSL`, `CSL`, `NZSL`, `SASL`, `UgSL`, etc.), and click **Apply**.
 - **Lane Orientation:** Toggle between traditional **Vertical Lane** (top-to-bottom column) and **Horizontal Lane**.
 - **Encoding Copy:** Switch between **`FSW (ASCII)`** and **`Unicode SWU`** and click **Copy**.
 
 For full SignWriting documentation and SignWriting versions of this README in multiple national sign languages, see [SignWriting Guide & Translations](./SIGNWRITING_GUIDE.md).
+
+
+## 4. International language and communication profiles
+
+The toolbar's **Blind, Deaf & Deafblind** selector groups international Braille
+codes separately from DeafBlind communication approaches. The SignWriting target
+selector remains the place to choose a specific national or regional sign language.
+
+DeafBlind methods listed include Protactile, Tactile ASL, Tactile BSL, hands-on
+signing, close-vision signing, tracking, Lorm, deafblind manual alphabets, and
+tactile fingerspelling. These are not interchangeable systems. Preferred contact,
+language, pace, and consent must be agreed directly with each communication
+partner.
+
+**Prototype limitation:** choosing a profile selects the existing Braille or
+Protactile output channel and saves the preference locally. It does not yet
+translate into the selected national Braille code or interpret/sign in a natural
+sign language. SignWriting gloss output is experimental and requires validation
+by native signers and DeafBlind community members.

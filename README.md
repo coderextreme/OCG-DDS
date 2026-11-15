@@ -93,3 +93,31 @@ I don't know if this is actually live or the graph is stored at this point.  So 
 | Turkish | Türkçe | [docs/i18n/README.tr.md](./docs/i18n/README.tr.md) |
 | Ukrainian | Українська | [docs/i18n/README.uk.md](./docs/i18n/README.uk.md) |
 | Vietnamese | Tiếng Việt | [docs/i18n/README.vi.md](./docs/i18n/README.vi.md) |
+
+
+## International Blind, Deaf, and Deafblind Communication Profiles
+
+The toolbar includes a **Blind, Deaf & Deafblind** profile selector. It separates
+three different concepts rather than treating them as interchangeable languages:
+
+- **Braille codes:** profiles include UEB, Spanish, French, German, Portuguese,
+  Italian, Dutch, Polish, Russian, Arabic, Bharati, Bangla, Chinese, Japanese,
+  and Korean Braille. Grade, contraction, and national variants remain explicit
+  choices for future code-specific transcription support.
+- **Sign languages:** the SignWriting target selector includes ASL, BSL, LSF,
+  DGS, LSE, LIBRAS, JSL, LSM, Auslan, NZSL, CSL, TSL, Kenyan Sign Language,
+  South African Sign Language, Indo-Pakistani Sign Language, Bangladeshi Sign
+  Language, LIS, NGT, Swedish Sign Language, PJM, Irish Sign Language, and
+  International Sign. These are distinct languages, not dialect labels for one
+  universal sign language.
+- **Deafblind communication profiles:** Protactile, Tactile ASL, Tactile BSL,
+  hands-on signing, close-vision signing, tracking, Lorm, deafblind manual
+  alphabets, and tactile fingerspelling are listed as communication approaches.
+
+**Implementation boundary:** the profile selector records a preferred
+communication approach and selects the corresponding existing output channel.
+It does not yet implement a full national Braille translator, sign-language
+interpreter, or standardized tactile grammar. In particular, SignWriting
+glosses and generated tactile cues are prototypes, not validated translations.
+Community review by native signers, Braille readers, and DeafBlind consultants
+is required before these outputs should be relied on for critical communication.

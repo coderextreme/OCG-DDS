@@ -13,10 +13,9 @@ test('SIGN_LANGUAGE_PRESETS covers major international sign languages and resolv
   assert.equal(bsl.alphabetType, 'two-handed');
   assert.equal(bsl.isCustom, false);
 
-  const custom = resolveSignLanguage('Kenyan Sign Language');
-  assert.equal(custom.isCustom, true);
-  assert.ok(custom.name.includes('Kenyan Sign Language'));
-  assert.ok(custom.code.length >= 2);
+  const kenyan = resolveSignLanguage('Kenyan Sign Language');
+  assert.equal(kenyan.isCustom, false);
+  assert.equal(kenyan.code, 'KSL');
 
   const isoCustom = resolveSignLanguage('fsl', 'horizontal');
   assert.equal(isoCustom.isCustom, true);

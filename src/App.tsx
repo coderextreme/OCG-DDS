@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { graphToMerkleRecords } from './core/accessibilityOutput';
+import { findAccessibilityLanguageOption } from './core/accessibilityLanguages';
 import { executeAccessibleCommand } from './core/accessibleEditing';
 import { createSeedCrdtReplicas, type CrdtReplica } from './core/crdt';
 import {
@@ -60,6 +61,14 @@ export default function App() {
   const [outputChannel, setOutputChannel] = useState<AccessibleOutputChannel>('standard');
   const [uiLocale, setUiLocale] = useState<SupportedUiLocale>('en');
   const [signLanguage, setSignLanguage] = useState<string>('asl');
+  const [accessibilityProfile, setAccessibilityProfile] = useState<string>(() => {
+    try {
+      const saved = window.localStorage.getItem('ocg-dds-accessibility-profile');
+      return saved && findAccessibilityLanguageOption(saved) ? saved : 'braille-ueb';
+    } catch {
+      return 'braille-ueb';
+    }
+  });
   const [keyboardGuideOpen, setKeyboardGuideOpen] = useState<boolean>(false);
   const [languageLabOpen, setLanguageLabOpen] = useState<boolean>(false);
   const [editConsoleFocusSignal, setEditConsoleFocusSignal] = useState<number>(0);
@@ -160,6 +169,14 @@ export default function App() {
     },
     []
   );
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('ocg-dds-accessibility-profile', accessibilityProfile);
+    } catch {
+      // Storage may be unavailable in private or restricted browsing contexts.
+    }
+  }, [accessibilityProfile]);
 
   // Sync theme, reduced motion, language, and RTL/LTR direction on documentElement
   useEffect(() => {
@@ -314,6 +331,18 @@ export default function App() {
     setOutputChannel(channel);
   };
 
+  const handleChangeAccessibilityProfile = (profileId: string) => {
+    const profile = findAccessibilityLanguageOption(profileId);
+    if (!profile) return;
+    setAccessibilityProfile(profileId);
+    setOutputChannel(profile.outputChannel);
+    announce(
+      activeModule,
+      'info',
+      `Communication profile selected: ${profile.name}. ${profile.description} This profile is guidance and preference metadata; it does not claim automatic braille translation or sign-language interpretation.`
+    );
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[var(--bg-canvas)] text-[var(--text-primary)]">
       {/* Skip to main content link */}
@@ -354,6 +383,8 @@ export default function App() {
         onChangeOutputChannel={handleChangeOutputChannel}
         uiLocale={uiLocale}
         onChangeUiLocale={(nextLocale) => setUiLocale(nextLocale)}
+        accessibilityProfile={accessibilityProfile}
+        onChangeAccessibilityProfile={handleChangeAccessibilityProfile}
         onOpenLanguageLab={() => {
           lastFocusedRef.current = document.activeElement as HTMLElement | null;
           setLanguageLabOpen(true);
