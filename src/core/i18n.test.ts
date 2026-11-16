@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   resolveUiLocale,
+  resolveUiLocaleForOutputSelection,
   runLanguageSelfTestSuite,
   translateUi,
   UI_LOCALES,
@@ -23,6 +24,37 @@ test('UI_LOCALES provides 24 international languages including LTR and RTL scrip
 
   // Unknown locale safely falls back to English
   assert.equal(translateUi('xx-unknown', 'navGraph'), 'Graph Workspace');
+});
+
+test('resolveUiLocaleForOutputSelection maps Braille, Sign Languages, and DeafBlind options to matching UI locales', () => {
+  assert.equal(
+    resolveUiLocaleForOutputSelection('braille', 'en', 'braille-ja', 'db-protactile', 'asl'),
+    'ja'
+  );
+  assert.equal(
+    resolveUiLocaleForOutputSelection('braille', 'en', 'braille-ar', 'db-protactile', 'asl'),
+    'ar'
+  );
+  assert.equal(
+    resolveUiLocaleForOutputSelection('signwriting', 'en', 'braille-ueb', 'db-protactile', 'dgs'),
+    'de'
+  );
+  assert.equal(
+    resolveUiLocaleForOutputSelection('asl', 'en', 'braille-ueb', 'db-protactile', 'lsf'),
+    'fr'
+  );
+  assert.equal(
+    resolveUiLocaleForOutputSelection('signwriting', 'en', 'braille-ueb', 'db-protactile', 'ArSL'),
+    'ar'
+  );
+  assert.equal(
+    resolveUiLocaleForOutputSelection('protactile', 'es', 'braille-ueb', 'db-protactile', 'asl'),
+    'es'
+  );
+  assert.equal(
+    resolveUiLocaleForOutputSelection('protactile', 'en', 'braille-ueb', 'db-lorm', 'asl'),
+    'de'
+  );
 });
 
 test('runLanguageSelfTestSuite verifies all 24 UI locales and 10+ SignWriting sign languages pass cleanly', () => {

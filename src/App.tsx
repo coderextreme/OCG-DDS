@@ -15,6 +15,7 @@ import {
 import {
   formatUi,
   resolveUiLocale,
+  resolveUiLocaleForOutputSelection,
   translateUi,
   type SupportedUiLocale,
 } from './core/i18n';
@@ -239,30 +240,54 @@ export default function App() {
         if (e.key === '1') {
           e.preventDefault();
           setActiveModule('graph');
-          announce('graph', 'info', 'Switched to Graph Workspace.');
+          announce(
+            'graph',
+            'info',
+            formatUi(uiLocale, 'eventSwitchedModule', {
+              module: translateUi(uiLocale, 'navGraph'),
+            })
+          );
         } else if (e.key === '2') {
           e.preventDefault();
           setActiveModule('sync');
-          announce('sync', 'info', 'Switched to Sync & Quorum module.');
+          announce(
+            'sync',
+            'info',
+            formatUi(uiLocale, 'eventSwitchedModule', {
+              module: translateUi(uiLocale, 'navSync'),
+            })
+          );
         } else if (e.key === '3') {
           e.preventDefault();
           setActiveModule('sharding');
-          announce('sharding', 'info', 'Switched to Hash Sharding module.');
+          announce(
+            'sharding',
+            'info',
+            formatUi(uiLocale, 'eventSwitchedModule', {
+              module: translateUi(uiLocale, 'navSharding'),
+            })
+          );
         } else if (e.key === '4') {
           e.preventDefault();
           setActiveModule('capabilities');
-          announce('capabilities', 'info', 'Switched to Capabilities Registry.');
+          announce(
+            'capabilities',
+            'info',
+            formatUi(uiLocale, 'eventSwitchedModule', {
+              module: translateUi(uiLocale, 'navCapabilities'),
+            })
+          );
         } else if (e.key.toLowerCase() === 'e') {
           e.preventDefault();
           setEditConsoleFocusSignal((n) => n + 1);
-          announce(activeModule, 'info', 'Focused Multi-Modal Edit Console.');
+          announce(activeModule, 'info', translateUi(uiLocale, 'eventFocusedConsole'));
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [announce]);
+  }, [announce, activeModule, uiLocale]);
 
   const handleOpenKeyboardGuide = () => {
     lastFocusedRef.current = document.activeElement as HTMLElement | null;
@@ -301,7 +326,7 @@ export default function App() {
     announce(
       activeModule,
       'info',
-      'Reset distributed graph, replicas, shards, and capabilities to deterministic seed state.'
+      translateUi(uiLocale, 'eventResetCluster')
     );
   };
 
@@ -418,6 +443,34 @@ export default function App() {
     }
   }, [outputChannel, uiLocale, brailleProfileId, deafblindProfileId, signLanguage]);
 
+  const handleOpenLanguageLab = () => {
+    lastFocusedRef.current = document.activeElement as HTMLElement | null;
+    const targetLocale = resolveUiLocaleForOutputSelection(
+      outputChannel,
+      uiLocale,
+      brailleProfileId,
+      deafblindProfileId,
+      signLanguage
+    );
+    if (targetLocale !== uiLocale) {
+      setUiLocale(targetLocale);
+      const spec = resolveUiLocale(targetLocale);
+      const localizedInit = translateUi(targetLocale, 'eventInitGraph');
+      setEvents((prev) =>
+        prev.map((ev) => (ev.id === 'init-1' ? { ...ev, summary: localizedInit } : ev))
+      );
+      announce(
+        activeModule,
+        'info',
+        formatUi(targetLocale, 'eventChangedLanguage', {
+          language: spec.nativeName,
+          code: spec.code,
+        })
+      );
+    }
+    setLanguageLabOpen(true);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[var(--bg-canvas)] text-[var(--text-primary)]">
       {/* Skip to main content link */}
@@ -433,7 +486,21 @@ export default function App() {
         uiLocale={uiLocale}
         onSelectModule={(mod) => {
           setActiveModule(mod);
-          announce(mod, 'info', `Switched active view to ${mod.toUpperCase()} module.`);
+          const moduleKey =
+            mod === 'graph'
+              ? 'navGraph'
+              : mod === 'sync'
+                ? 'navSync'
+                : mod === 'sharding'
+                  ? 'navSharding'
+                  : 'navCapabilities';
+          announce(
+            mod,
+            'info',
+            formatUi(uiLocale, 'eventSwitchedModule', {
+              module: translateUi(uiLocale, moduleKey),
+            })
+          );
         }}
         onOpenKeyboardGuide={handleOpenKeyboardGuide}
       />
@@ -442,7 +509,19 @@ export default function App() {
         theme={theme}
         onChangeTheme={(nextTheme) => {
           setTheme(nextTheme);
-          announce(activeModule, 'info', `Display contrast mode changed to ${nextTheme}.`);
+          const themeKey =
+            nextTheme === 'dark'
+              ? 'themeDark'
+              : nextTheme === 'high-contrast'
+                ? 'themeHighContrast'
+                : 'themeLight';
+          announce(
+            activeModule,
+            'info',
+            formatUi(uiLocale, 'eventChangedTheme', {
+              theme: translateUi(uiLocale, themeKey),
+            })
+          );
         }}
         reducedMotion={reducedMotion}
         onToggleReducedMotion={() => {
@@ -451,7 +530,9 @@ export default function App() {
           announce(
             activeModule,
             'info',
-            `Motion preference set to ${next ? 'Reduced' : 'Standard'}.`
+            formatUi(uiLocale, 'eventChangedMotion', {
+              mode: translateUi(uiLocale, next ? 'motionReduced' : 'motionStandard'),
+            })
           );
         }}
         outputChannel={outputChannel}
@@ -461,10 +542,7 @@ export default function App() {
         onChangeOutputChannel={handleChangeOutputChannel}
         onSelectOutputVariant={handleSelectOutputVariant}
         uiLocale={uiLocale}
-        onOpenLanguageLab={() => {
-          lastFocusedRef.current = document.activeElement as HTMLElement | null;
-          setLanguageLabOpen(true);
-        }}
+        onOpenLanguageLab={handleOpenLanguageLab}
         onResetCluster={handleResetCluster}
       />
 
@@ -508,7 +586,11 @@ export default function App() {
                 }}
                 onOpenCapabilities={() => {
                   setActiveModule('capabilities');
-                  announce('capabilities', 'info', 'Opened Capabilities Registry.');
+                  announce(
+                    'capabilities',
+                    'info',
+                    translateUi(uiLocale, 'eventOpenedCapabilities')
+                  );
                 }}
                 onAnnounce={(sev, msg) => announce('graph', sev, msg)}
               />
@@ -580,7 +662,7 @@ export default function App() {
               onClearEvents={() => {
                 setEvents([]);
                 setLatestSeverity('info');
-                setLatestAnnouncement('Cleared operation audit log.');
+                setLatestAnnouncement(translateUi(uiLocale, 'eventClearedLog'));
               }}
             />
           </div>

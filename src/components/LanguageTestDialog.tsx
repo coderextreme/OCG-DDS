@@ -12,6 +12,7 @@ import {
 import {
   formatUi,
   resolveUiLocale,
+  resolveUiLocaleForOutputSelection,
   runLanguageSelfTestSuite,
   translateUi,
   UI_LOCALES,
@@ -238,8 +239,19 @@ export const LanguageTestDialog: React.FC<LanguageTestDialogProps> = ({
                   id="lab-braille-select"
                   value={activeBraille.id}
                   onChange={(e) => {
-                    onChangeBrailleProfile(e.target.value);
+                    const nextId = e.target.value;
+                    onChangeBrailleProfile(nextId);
                     onChangeOutputChannel('braille');
+                    const mappedLocale = resolveUiLocaleForOutputSelection(
+                      'braille',
+                      uiLocale,
+                      nextId,
+                      deafblindProfileId,
+                      signLanguage
+                    );
+                    if (mappedLocale !== uiLocale) {
+                      onChangeUiLocale(mappedLocale, false);
+                    }
                   }}
                   className="min-h-[34px] w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)]"
                 >
@@ -262,8 +274,19 @@ export const LanguageTestDialog: React.FC<LanguageTestDialogProps> = ({
                   id="lab-tactile-select"
                   value={activeDeafblind.id}
                   onChange={(e) => {
-                    onChangeDeafblindProfile(e.target.value);
+                    const nextId = e.target.value;
+                    onChangeDeafblindProfile(nextId);
                     onChangeOutputChannel('protactile');
+                    const mappedLocale = resolveUiLocaleForOutputSelection(
+                      'protactile',
+                      uiLocale,
+                      brailleProfileId,
+                      nextId,
+                      signLanguage
+                    );
+                    if (mappedLocale !== uiLocale) {
+                      onChangeUiLocale(mappedLocale, false);
+                    }
                   }}
                   className="min-h-[34px] w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)]"
                 >
@@ -287,9 +310,24 @@ export const LanguageTestDialog: React.FC<LanguageTestDialogProps> = ({
               value={isPresetSign ? signLanguage.toLowerCase() : '__custom__'}
               onChange={(e) => {
                 if (e.target.value !== '__custom__') {
-                  onChangeSignLanguage(e.target.value);
+                  const nextSign = e.target.value;
+                  const targetChannel =
+                    outputChannel === 'asl' || outputChannel === 'signwriting'
+                      ? outputChannel
+                      : 'signwriting';
+                  onChangeSignLanguage(nextSign);
                   if (outputChannel !== 'asl' && outputChannel !== 'signwriting') {
                     onChangeOutputChannel('signwriting');
+                  }
+                  const mappedLocale = resolveUiLocaleForOutputSelection(
+                    targetChannel,
+                    uiLocale,
+                    brailleProfileId,
+                    deafblindProfileId,
+                    nextSign
+                  );
+                  if (mappedLocale !== uiLocale) {
+                    onChangeUiLocale(mappedLocale, false);
                   }
                 }
               }}
@@ -311,12 +349,23 @@ export const LanguageTestDialog: React.FC<LanguageTestDialogProps> = ({
               onSubmit={(e) => {
                 e.preventDefault();
                 if (customSignInput.trim()) {
-                  onChangeSignLanguage(customSignInput.trim());
-                  onChangeOutputChannel(
+                  const nextSign = customSignInput.trim();
+                  const targetChannel =
                     outputChannel === 'asl' || outputChannel === 'signwriting'
                       ? outputChannel
-                      : 'signwriting'
+                      : 'signwriting';
+                  onChangeSignLanguage(nextSign);
+                  onChangeOutputChannel(targetChannel);
+                  const mappedLocale = resolveUiLocaleForOutputSelection(
+                    targetChannel,
+                    uiLocale,
+                    brailleProfileId,
+                    deafblindProfileId,
+                    nextSign
                   );
+                  if (mappedLocale !== uiLocale) {
+                    onChangeUiLocale(mappedLocale, false);
+                  }
                 }
               }}
               className="flex gap-1.5"

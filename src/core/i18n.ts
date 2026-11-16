@@ -318,6 +318,95 @@ export const UI_LOCALES: UiLocaleSpec[] = [
   },
 ];
 
+const BRAILLE_TO_UI_LOCALE: Record<string, SupportedUiLocale> = {
+  'braille-ueb': 'en',
+  'braille-es': 'es',
+  'braille-fr': 'fr',
+  'braille-de': 'de',
+  'braille-pt': 'pt',
+  'braille-it': 'it',
+  'braille-nl': 'nl',
+  'braille-pl': 'pl',
+  'braille-ru': 'ru',
+  'braille-ar': 'ar',
+  'braille-hi': 'hi',
+  'braille-bn': 'bn',
+  'braille-zh': 'zh-Hans',
+  'braille-ja': 'ja',
+  'braille-ko': 'ko',
+};
+
+const SIGN_TO_UI_LOCALE: Record<string, SupportedUiLocale> = {
+  asl: 'en',
+  bsl: 'en',
+  auslan: 'en',
+  nzsl: 'en',
+  sasl: 'en',
+  'isl-ie': 'en',
+  is: 'en',
+  lsf: 'fr',
+  dgs: 'de',
+  lse: 'es',
+  lsm: 'es',
+  libras: 'pt',
+  jsl: 'ja',
+  csl: 'zh-Hans',
+  tsl: 'zh-Hant',
+  ksl: 'sw',
+  'isl-in': 'hi',
+  bds: 'bn',
+  bdsl: 'bn',
+  lis: 'it',
+  ngt: 'nl',
+  sts: 'sv',
+  pjm: 'pl',
+  rsl: 'ru',
+  ukl: 'uk',
+  arsl: 'ar',
+  isl: 'he',
+  tid: 'tr',
+  'ksl-kr': 'ko',
+  vsl: 'vi',
+  bisindo: 'id',
+  signuno: 'eo',
+};
+
+const DEAFBLIND_TO_UI_LOCALE: Record<string, SupportedUiLocale> = {
+  'db-tactile-asl': 'en',
+  'db-tactile-bsl': 'en',
+  'db-lorm': 'de',
+};
+
+export function resolveUiLocaleForOutputSelection(
+  channel: 'standard' | 'braille' | 'protactile' | 'asl' | 'signwriting',
+  currentUiLocale: SupportedUiLocale,
+  brailleProfileId: string,
+  deafblindProfileId: string,
+  signLanguage: string
+): SupportedUiLocale {
+  if (channel === 'standard') {
+    return currentUiLocale;
+  }
+  if (channel === 'braille') {
+    return BRAILLE_TO_UI_LOCALE[brailleProfileId.trim().toLowerCase()] ?? currentUiLocale;
+  }
+  if (channel === 'protactile') {
+    return (
+      DEAFBLIND_TO_UI_LOCALE[deafblindProfileId.trim().toLowerCase()] ?? currentUiLocale
+    );
+  }
+  const normalizedSign = signLanguage.trim().toLowerCase();
+  if (SIGN_TO_UI_LOCALE[normalizedSign]) {
+    return SIGN_TO_UI_LOCALE[normalizedSign];
+  }
+  const matchedLocale = UI_LOCALES.find(
+    (loc) =>
+      loc.recommendedSignLanguage.toLowerCase() === normalizedSign ||
+      loc.code.toLowerCase() === normalizedSign
+  );
+  return matchedLocale ? matchedLocale.code : currentUiLocale;
+}
+
 export function resolveUiLocale(code?: string): UiLocaleSpec {
   const normalized = (code ?? 'en').trim().toLowerCase();
   return (
